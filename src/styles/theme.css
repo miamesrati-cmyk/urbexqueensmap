@@ -1,0 +1,279 @@
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Poppins:wght@600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+:root {
+  /* Neutral tokens */
+  --bg: #03030c;
+  --panel: rgba(10, 10, 24, 0.88);
+  --panel-sheen: rgba(18, 16, 38, 0.88);
+  --stroke: rgba(255, 255, 255, 0.22);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.82);
+  --glow-pink: rgba(255, 90, 211, 0.32);
+  --glow-blue: rgba(95, 189, 255, 0.28);
+  --shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.55);
+  --shadow-card: 0 24px 54px rgba(0, 0, 0, 0.58);
+  --shadow-glow: 0 0 18px rgba(255, 255, 255, 0.2);
+  --focus-ring: 0 0 0 2px rgba(255, 255, 255, 0.9);
+  --interaction-transition: 0.2s ease-out;
+  --blur-strong: blur(24px);
+  --topbar-depth: 0 22px 70px rgba(0, 0, 0, 0.65);
+  --edge-highlight: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  --topbar-h: 64px;
+  --logo-badge-bg: rgba(4, 4, 10, 0.65);
+  --logo-badge-stroke: rgba(255, 255, 255, 0.35);
+  --logo-badge-glow: rgba(255, 255, 255, 0.45);
+  --ctrl-shell-bg: rgba(8, 8, 18, 0.85);
+  --ctrl-divider: rgba(255, 255, 255, 0.15);
+  --sheen-gradient: linear-gradient(120deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+
+  /* Brand palette */
+  --bg-main: var(--bg);
+  --bg-surface: #0b0d1a;
+  --bg-panel: #111329;
+  --bg-contrast: #14182e;
+  --text-primary: var(--text);
+  --text-secondary: rgba(247, 243, 255, 0.82);
+  --text-muted: var(--muted);
+  --accent: #ff5ad3;
+  --accent-2: #7a5dff;
+  --accent-amber: #ff9f1c;
+  --gradient-accent: linear-gradient(120deg, #ff006f, #c13cff, #7a5dff);
+  --gradient-amber: linear-gradient(120deg, #ff8a00, #ff5ad3);
+  --success: #2ddb9b;
+  --warning: #fbbf24;
+  --danger: #ff5c8a;
+
+  /* Typography */
+  --font-body: "Space Grotesk", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-title: "Cinzel", "Space Grotesk", serif;
+  --font-accent: "Poppins", var(--font-body);
+  --fs-h1: 2rem;
+  --fs-h2: 1.4rem;
+  --fs-subtitle: 1rem;
+  --fs-body: 0.98rem;
+  --fs-small: 0.88rem;
+
+  /* Spacing */
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+
+  /* Radius */
+  --radius-card: 16px;
+  --radius-panel: 18px;
+  --radius-pill: 999px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  background: radial-gradient(circle at 10% 10%, rgba(255, 90, 211, 0.05), transparent 28%),
+    radial-gradient(circle at 90% 0%, rgba(122, 93, 255, 0.08), transparent 20%),
+    var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-title);
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+p {
+  color: var(--text-secondary);
+}
+
+a {
+  color: #8fd2ff;
+}
+
+.uq-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+}
+
+.uq-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-5);
+}
+
+.uq-pill {
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 700;
+  font-family: var(--font-accent);
+}
+
+.uq-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0.65rem 1.1rem;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--gradient-accent);
+  color: #0b0719;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: var(--shadow-glow), 0 10px 24px rgba(0, 0, 0, 0.5);
+  transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
+}
+
+.uq-btn-primary:hover {
+  transform: translateY(-1px) scale(1.01);
+  filter: brightness(1.05);
+}
+
+.uq-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: transform 0.14s ease, border-color 0.14s ease;
+}
+
+.uq-btn-ghost:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.uq-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+}
+
+.uq-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  transform: translateX(-100%);
+  animation: uq-shimmer 1.2s ease infinite;
+}
+
+@keyframes uq-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.uq-fade-card {
+  animation: uq-fade-in 0.18s ease;
+}
+
+@keyframes uq-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.uq-modal-anim {
+  animation: uq-pop 0.22s ease;
+}
+
+@keyframes uq-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* =========================================================
+   UQ PRO BAR — Compact V2 (Micro HUD)
+   ========================================================= */
+
+.route-map .UQ_PROBAR_WRAP{
+  display: flex !important;
+  justify-content: center !important;
+}
+
+.route-map .UQ_PROBAR_CONTAINER{
+  display: inline-flex !important;
+  align-items: center !important;
+
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0 !important;
+
+  padding: 6px 8px !important;
+  gap: 8px !important;
+
+  border-radius: 14px !important;
+}
+
+.route-map .UQ_PROBAR_CONTAINER .UQ_PILL{
+  height: 34px !important;
+  padding: 0 12px !important;
+
+  font-size: 11px !important;
+  letter-spacing: .10em !important;
+
+  border-radius: 999px !important;
+  line-height: 34px !important;
+}
+
+.route-map .UQ_PROBAR_CONTAINER .UQ_PILL span[role="img"],
+.route-map .UQ_PROBAR_CONTAINER .UQ_PILL .emoji{
+  margin-right: 6px !important;
+}
+
+@media (max-width: 520px){
+  .route-map .UQ_PROBAR_WRAP{
+    padding: 0 10px;
+  }
+  .route-map .UQ_PROBAR_CONTAINER{
+    width: 100% !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    gap: 8px !important;
+  }
+  .route-map .UQ_PROBAR_CONTAINER .UQ_PILL{
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+}

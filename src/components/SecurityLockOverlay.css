@@ -1,0 +1,38 @@
+.security-lock-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999;
+  color: #fff;
+  text-align: center;
+  padding: 32px;
+  pointer-events: auto;
+}
+
+.security-lock-content {
+  max-width: 420px;
+  background: rgba(18, 18, 18, 0.9);
+  padding: 32px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+
+.security-lock-content h2 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 1.6rem;
+}
+
+.security-lock-content p {
+  margin: 10px 0;
+  line-height: 1.4;
+}
+
+.security-lock-reason {
+  font-weight: 600;
+  color: #ff9bad;
+}

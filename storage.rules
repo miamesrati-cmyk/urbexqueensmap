@@ -1,0 +1,143 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isPro() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isPro == true;
+    }
+
+    function adminUid() {
+      return "AQqXqFOgu4aCRSDUAS8wwUZcJB53";
+    }
+
+    function isHardAdmin() {
+      return isSignedIn() && request.auth.uid == adminUid();
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function hasAppCheckToken() {
+      return request.appCheck != null
+        && request.appCheck.token != null
+        && request.appCheck.token.appId != "";
+    }
+
+    function maxImageSize() {
+      return 6 * 1024 * 1024;
+    }
+
+    function maxMediaSize() {
+      return 30 * 1024 * 1024;
+    }
+
+    function isAllowedImageType() {
+      return request.resource != null
+        && request.resource.contentType != null
+        && request.resource.contentType.matches("image/(jpeg|png|webp)");
+    }
+
+    function isAllowedMediaType() {
+      return isAllowedImageType()
+        || (request.resource != null
+          && request.resource.contentType != null
+          && request.resource.contentType == "video/mp4");
+    }
+
+    function isImageUpload() {
+      return request.resource != null
+        && request.resource.contentType != null
+        && isAllowedImageType()
+        && request.resource.size <= maxImageSize();
+    }
+
+    function isMediaUpload() {
+      return request.resource != null
+        && request.resource.contentType != null
+        && isAllowedMediaType()
+        && request.resource.size <= maxMediaSize();
+    }
+
+    function isProSpot(placeId) {
+      return get(/databases/$(database)/documents/places/$(placeId)).data.proOnly == true;
+    }
+
+    // Avatars de profil : lecture publique, écriture par le propriétaire uniquement.
+    match /avatars/{userId}/{filePath=**} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if hasAppCheckToken()
+        && request.auth != null
+        && request.auth.uid == userId
+        && isImageUpload();
+    }
+
+    // Photos de spots : lecture restreinte si spot PRO, écriture par l'uploader.
+    match /spotImages/{placeId}/{uid}/{fileId} {
+      allow get: if isSignedIn()
+        && (!isProSpot(placeId) || isPro());
+      allow list: if false;
+      allow write: if hasAppCheckToken()
+        && isOwner(uid)
+        && (!isProSpot(placeId) || isPro())
+        && isImageUpload();
+      allow delete: if hasAppCheckToken() && isOwner(uid);
+    }
+
+    // Médias posts
+    match /posts/{uid}/{postId}/{fileId} {
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow write, delete: if hasAppCheckToken()
+        && isOwner(uid)
+        && isMediaUpload();
+    }
+
+    // Médias de stories
+    match /stories/{uid}/{fileId} {
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow write, delete: if hasAppCheckToken()
+        && isOwner(uid)
+        && isMediaUpload();
+    }
+
+    // Médias DM
+    match /dmMedia/{uidA}/{uidB}/{fileId} {
+      allow get: if isSignedIn()
+        && (request.auth.uid == uidA || request.auth.uid == uidB);
+      allow list: if false;
+      allow write: if hasAppCheckToken()
+        && isSignedIn()
+        && (request.auth.uid == uidA || request.auth.uid == uidB)
+        && isMediaUpload();
+      allow delete: if hasAppCheckToken()
+        && isSignedIn()
+        && (request.auth.uid == uidA || request.auth.uid == uidB);
+    }
+
+    // Histoire des lieux : uniquement les admins peuvent écrire / uploader les medias
+    match /historyImages/{placeId}/{fileId} {
+      allow get: if true;
+      allow list: if false;
+      allow write, delete: if hasAppCheckToken()
+        && isHardAdmin()
+        && isImageUpload();
+    }
+
+    // Par défaut : tout le reste est refusé.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

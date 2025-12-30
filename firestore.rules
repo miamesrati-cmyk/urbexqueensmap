@@ -1,0 +1,797 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function userDoc() {
+      return isSignedIn()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid))
+        : null;
+    }
+
+    function isPro() {
+      return userDoc() != null && userDoc().data.isPro == true;
+    }
+
+    function adminUid() {
+      return "AQqXqFOgu4aCRSDUAS8wwUZcJB53";
+    }
+
+    function isHardAdmin() {
+      return isSignedIn() && request.auth.uid == adminUid();
+    }
+
+    function getAdminRecord(uid) {
+      return uid == null
+        ? null
+        : get(/databases/$(database)/documents/admins/$(uid));
+    }
+
+    function hasEnabledAdmin(uid) {
+      const record = getAdminRecord(uid);
+      return record != null && record.exists() && record.data.enabled == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (isHardAdmin() || hasEnabledAdmin(request.auth.uid));
+    }
+
+    function adminRestrictedKeys() {
+      return [
+        "isAdmin",
+        "roles",
+        "roles.admin",
+        "role",
+        "roles.role",
+        "permissions",
+        "roles.permissions",
+        "admin",
+      ];
+    }
+
+    function requestContainsRestrictedFields() {
+      return request.resource.data.keys().hasAny(adminRestrictedKeys());
+    }
+
+    function updateContainsRestrictedFields() {
+      return resource.data.diff(request.resource.data).affectedKeys().hasAny(adminRestrictedKeys())
+        || request.resource.data.diff(resource.data).affectedKeys().hasAny(adminRestrictedKeys());
+    }
+
+    // Ensure only the listed keys are touched (no sneaky overwrites).
+    function onlyFieldsChanged(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed)
+        && resource.data.diff(request.resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    function hasAppCheckToken() {
+      return request.appCheck != null
+        && request.appCheck.token != null
+        && request.appCheck.token.appId != "";
+    }
+
+    function allowedFields(allowed) {
+      return request.resource.data.keys().hasOnly(allowed);
+    }
+
+    function isStringLength(value, max) {
+      return value == null || (value is string && value.size() <= max);
+    }
+
+    function isNumberInRange(value, min, max) {
+      return value == null || (value is number && value >= min && value <= max);
+    }
+
+    function isBool(value) {
+      return value == null || value is bool;
+    }
+
+    function isTimestampOrString(value) {
+      return value == null || value is timestamp || value is string;
+    }
+
+    function matchesOneOf(value, options) {
+      if (value == null) return true;
+      for (option in options) {
+        if (value == option) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function isStringList(value, maxItems, maxLength) {
+      if (value == null) return true;
+      if (!(value is list) || value.size() > maxItems) return false;
+      for (item in value) {
+        if (!(item is string && item.size() <= maxLength)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function isValidLocation(loc) {
+      if (loc == null) return true;
+      return loc is map
+        && loc.lat is number
+        && loc.lng is number
+        && loc.lat >= -90
+        && loc.lat <= 90
+        && loc.lng >= -180
+        && loc.lng <= 180
+        && (loc.label == null || (loc.label is string && loc.label.size() <= 200));
+    }
+
+    function isValidStats(stats) {
+      if (stats == null) return true;
+      if (!(stats is map)) return false;
+      return (stats.spotsVisitedCount == null || (stats.spotsVisitedCount is number && stats.spotsVisitedCount >= 0))
+        && (stats.spotsSavedCount == null || (stats.spotsSavedCount is number && stats.spotsSavedCount >= 0))
+        && (stats.spotsAddedCount == null || (stats.spotsAddedCount is number && stats.spotsAddedCount >= 0))
+        && (stats.kmExplored == null || (stats.kmExplored is number && stats.kmExplored >= 0));
+    }
+
+    function isValidUserLevel(value) {
+      return matchesOneOf(value, ["rookie", "explorer", "queen", "legend"]);
+    }
+
+    function isValidParticipantList(list) {
+      if (list == null) return false;
+      if (!(list is list) || list.size() < 2 || list.size() > 12) return false;
+      for (item in list) {
+        if (!(item is string && item.size() <= 128 && item.size() > 0)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function allowedUserFields() {
+      return [
+        "displayName",
+        "photoURL",
+        "bannerURL",
+        "bio",
+        "favoriteSpotTypes",
+        "level",
+        "stats",
+        "badges",
+        "qrSlug",
+        "isPrivate",
+        "followersCount",
+        "followingCount",
+        "createdAt",
+        "updatedAt",
+        "isPro",
+        "username",
+        "usernameLower",
+        "displayNameLower",
+        "avatarCropX",
+        "avatarCropY",
+        "avatarZoom",
+        "avatarMode",
+        "allowMessages",
+        "stealthMode",
+        "mapShowGhost",
+        "mapShowLegend",
+        "mapShowDone",
+        "autoCenterOnUser",
+        "lowLightMap",
+        "notifyNewSpotsNearMe",
+        "notifyNewSpotsNearby",
+        "notifyMessages",
+        "notifyComments",
+        "notifyDangerousSpots",
+        "notifyLoginAlerts",
+        "notifyNewsEmail",
+        "profilePublic",
+        "showDonePublic",
+        "showFavoritesPublic",
+        "historyImages",
+        "historyTitle",
+      ];
+    }
+
+    function isValidUserPayload() {
+      return isStringLength(request.resource.data.displayName, 120)
+        && isStringLength(request.resource.data.username, 40)
+        && isStringLength(request.resource.data.usernameLower, 40)
+        && isStringLength(request.resource.data.displayNameLower, 120)
+        && isStringLength(request.resource.data.photoURL, 1000)
+        && isStringLength(request.resource.data.bannerURL, 1000)
+        && isStringLength(request.resource.data.bio, 800)
+        && isStringList(request.resource.data.favoriteSpotTypes, 12, 60)
+        && isValidUserLevel(request.resource.data.level)
+        && isValidStats(request.resource.data.stats)
+        && (request.resource.data.badges == null || request.resource.data.badges is map);
+    }
+
+    function allowedPlaceFields() {
+      return [
+        "title",
+        "description",
+        "category",
+        "riskLevel",
+        "access",
+        "lat",
+        "lng",
+        "createdAt",
+        "updatedAt",
+        "addedBy",
+        "createdBy",
+        "isPublic",
+        "approved",
+        "history",
+        "historyTitle",
+        "historyShort",
+        "historyShortHtml",
+        "historyFull",
+        "historyFullHtml",
+        "historyUpdatedAt",
+        "historyUpdatedBy",
+        "historyIsPro",
+        "historyImages",
+        "adminNotes",
+        "archives",
+        "dangerLevel",
+        "dangerLabel",
+        "dangerIndex",
+        "paranormalIndex",
+        "parking",
+        "entrances",
+        "communityScore",
+        "popularity",
+        "tags",
+        "proOnly",
+        "isProOnly",
+        "isGhost",
+        "isLegend",
+        "missionIds",
+        "isDraft",
+        "videoUrl",
+        "name",
+        "city",
+        "region",
+      ];
+    }
+
+    function isValidPlacePayload() {
+      return isStringLength(request.resource.data.title, 200)
+        && isStringLength(request.resource.data.description, 2000)
+        && matchesOneOf(request.resource.data.category, ["maison", "usine", "école", "hôpital", "religieux", "autre"])
+        && matchesOneOf(request.resource.data.riskLevel, ["faible", "moyen", "élevé"])
+        && matchesOneOf(request.resource.data.access, ["facile", "moyen", "difficile"])
+        && isNumberInRange(request.resource.data.lat, -90, 90)
+        && isNumberInRange(request.resource.data.lng, -180, 180)
+        && isStringLength(request.resource.data.historyTitle, 400)
+        && isStringLength(request.resource.data.historyShort, 2000)
+        && isStringLength(request.resource.data.historyShortHtml, 20000)
+        && isStringLength(request.resource.data.historyFull, 8000)
+        && isStringLength(request.resource.data.historyFullHtml, 50000)
+        && isStringLength(request.resource.data.adminNotes, 3000)
+        && isStringLength(request.resource.data.historyUpdatedBy, 200)
+        && isStringLength(request.resource.data.videoUrl, 2000)
+        && isStringLength(request.resource.data.name, 200)
+        && isStringLength(request.resource.data.city, 200)
+        && isStringLength(request.resource.data.region, 200)
+        && isStringList(request.resource.data.tags, 40, 60)
+        && isStringList(request.resource.data.historyImages, 30, 1024)
+        && isStringList(request.resource.data.archives, 20, 2048)
+        && isStringList(request.resource.data.missionIds, 40, 64)
+        && isStringLength(request.resource.data.dangerLabel, 200)
+        && isNumberInRange(request.resource.data.dangerLevel, 0, 10)
+        && isNumberInRange(request.resource.data.dangerIndex, 0, 100)
+        && isNumberInRange(request.resource.data.paranormalIndex, 0, 100)
+        && isNumberInRange(request.resource.data.communityScore, 0, 1000)
+        && isNumberInRange(request.resource.data.popularity, 0, 1000000)
+        && isTimestampOrString(request.resource.data.updatedAt)
+        && isTimestampOrString(request.resource.data.historyUpdatedAt)
+        && isBool(request.resource.data.proOnly)
+        && isBool(request.resource.data.isProOnly)
+        && isBool(request.resource.data.isGhost)
+        && isBool(request.resource.data.isLegend)
+        && isBool(request.resource.data.historyIsPro)
+        && isBool(request.resource.data.isDraft)
+        && isBool(request.resource.data.isPublic);
+    }
+
+    function normalizeStatus(value) {
+      if (value == null) return "draft";
+      if (!(value is string)) return "";
+      return value;
+    }
+
+    function isDraftStatus(value) {
+      return normalizeStatus(value) == "draft";
+    }
+
+    function isPublishedStatus(value) {
+      return normalizeStatus(value) == "published";
+    }
+
+    function statusIsValid(value) {
+      if (value == null) return true;
+      return value is string && (value == "draft" || value == "published");
+    }
+
+    function adminDraftCreateAllowed() {
+      return hasAppCheckToken()
+        && isAdmin()
+        && isDraftStatus(request.resource.data.status)
+        && statusIsValid(request.resource.data.status);
+    }
+
+    function adminDraftUpdateAllowed() {
+      return hasAppCheckToken()
+        && isAdmin()
+        && isDraftStatus(resource.data.status)
+        && isDraftStatus(request.resource.data.status)
+        && statusIsValid(request.resource.data.status);
+    }
+
+    function allowedPostFields() {
+      return [
+        "postId",
+        "userId",
+        "mediaUrls",
+        "caption",
+        "location",
+        "createdAt",
+        "reactions",
+        "reactionBy",
+        "commentsCount",
+        "filter",
+        "authorName",
+        "authorAvatar",
+        "authorIsPro",
+        "authorUsername",
+      ];
+    }
+
+    function isValidPostPayload() {
+      const mediaUrls = request.resource.data.mediaUrls;
+      return mediaUrls is list
+        && mediaUrls.size() > 0
+        && mediaUrls.size() <= 10
+        && isStringList(mediaUrls, 10, 2048)
+        && isStringLength(request.resource.data.caption, 1000)
+        && isValidLocation(request.resource.data.location)
+        && isStringLength(request.resource.data.filter, 30)
+        && isStringLength(request.resource.data.authorName, 100)
+        && isStringLength(request.resource.data.authorAvatar, 1000)
+        && isStringLength(request.resource.data.authorUsername, 40);
+    }
+
+    function allowedStoryFields() {
+      return [
+        "mediaUrl",
+        "userId",
+        "text",
+        "music",
+        "createdAt",
+        "expiresAt",
+        "reactions",
+        "reactionBy",
+        "authorName",
+        "authorAvatar",
+        "authorUsername",
+      ];
+    }
+
+    function allowedConversationFields() {
+      return ["participantIds", "pairKey", "lastMessageAt", "lastMessageText", "lastMessageSender"];
+    }
+
+    function isValidStoryPayload() {
+      return isStringLength(request.resource.data.mediaUrl, 2048)
+        && isStringLength(request.resource.data.text, 800)
+        && isStringLength(request.resource.data.music, 200)
+        && (request.resource.data.expiresAt == null || request.resource.data.expiresAt is timestamp || request.resource.data.expiresAt is number);
+    }
+
+    function allowedMessageFields() {
+      return ["fromUid", "text", "mediaUrl", "createdAt", "seenBy"];
+    }
+
+    function isValidMessagePayload() {
+      const seenBy = request.resource.data.seenBy;
+      if (seenBy != null) {
+        if (!(seenBy is list) || seenBy.size() > 20) {
+          return false;
+        }
+        for (entry in seenBy) {
+          if (!(entry is string && entry.size() <= 128)) {
+            return false;
+          }
+        }
+      }
+      return isStringLength(request.resource.data.fromUid, 128)
+        && isStringLength(request.resource.data.text, 2000)
+        && isStringLength(request.resource.data.mediaUrl, 2048)
+        && (request.resource.data.createdAt == null || request.resource.data.createdAt is timestamp || request.resource.data.createdAt is number);
+    }
+
+    function allowedProGameSessionFields() {
+      return [
+        "ownerId",
+        "uid",
+        "location",
+        "discoveredIds",
+        "tension",
+        "rank",
+        "durationMs",
+        "highlights",
+        "createdAt",
+      ];
+    }
+
+    function isValidUserPlaces() {
+      if (request.resource.data.places == null) return true;
+      if (!(request.resource.data.places is map)) return false;
+      for (entry in request.resource.data.places.values()) {
+        if (!(entry is map)) {
+          return false;
+        }
+        if (!(entry.saved == null || entry.saved is bool)) {
+          return false;
+        }
+        if (!(entry.done == null || entry.done is bool)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function allowedUserSettingsFields() {
+      return [
+        "profilePublic",
+        "showDonePublic",
+        "showFavoritesPublic",
+        "allowMessages",
+        "stealthMode",
+        "mapShowGhost",
+        "mapShowLegend",
+        "mapShowDone",
+        "autoCenterOnUser",
+        "lowLightMap",
+        "notifyNewSpotsNearMe",
+        "notifyNewSpotsNearby",
+        "notifyMessages",
+        "notifyComments",
+        "notifyDangerousSpots",
+        "notifyLoginAlerts",
+        "notifyNewsEmail",
+        "lastDataDownloadAt",
+      ];
+    }
+
+    function isValidUserSettingsPayload() {
+      return isBool(request.resource.data.profilePublic)
+        && isBool(request.resource.data.showDonePublic)
+        && isBool(request.resource.data.showFavoritesPublic)
+        && isBool(request.resource.data.allowMessages)
+        && isBool(request.resource.data.stealthMode)
+        && isBool(request.resource.data.mapShowGhost)
+        && isBool(request.resource.data.mapShowLegend)
+        && isBool(request.resource.data.mapShowDone)
+        && isBool(request.resource.data.autoCenterOnUser)
+        && isBool(request.resource.data.lowLightMap)
+        && isBool(request.resource.data.notifyNewSpotsNearMe)
+        && isBool(request.resource.data.notifyNewSpotsNearby)
+        && isBool(request.resource.data.notifyMessages)
+        && isBool(request.resource.data.notifyComments)
+        && isBool(request.resource.data.notifyDangerousSpots)
+        && isBool(request.resource.data.notifyLoginAlerts)
+        && isBool(request.resource.data.notifyNewsEmail)
+        && isTimestampOrString(request.resource.data.lastDataDownloadAt);
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if hasAppCheckToken()
+        && isOwner(userId)
+        && (!("isPro" in request.resource.data) || request.resource.data.isPro == false)
+        && !requestContainsRestrictedFields()
+        && allowedFields(allowedUserFields())
+        && isValidUserPayload();
+      allow update: if hasAppCheckToken() && (
+        (isOwner(userId) && !updateContainsRestrictedFields() && allowedFields(allowedUserFields()) && isValidUserPayload())
+        || (isSignedIn() && onlyFieldsChanged(["followersCount", "followingCount"]))
+        || isAdmin()
+      );
+      allow delete: if hasAppCheckToken() && isOwner(userId);
+
+      match /followRequests/{requestId} {
+        allow read: if isSignedIn() && (request.auth.uid == userId || request.auth.uid == resource.data.fromUid);
+        allow create: if hasAppCheckToken()
+          && isSignedIn()
+          && request.resource.data.fromUid == request.auth.uid
+          && userId != request.auth.uid;
+        allow update: if hasAppCheckToken() && isSignedIn() && request.auth.uid == userId; // owner can accept/decline
+        allow delete: if hasAppCheckToken() && isSignedIn() && request.auth.uid == userId;
+      }
+
+      match /notifications/{notificationId} {
+        allow read: if isSignedIn() && request.auth.uid == userId;
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /admins/{adminId} {
+      allow read, write: if isAdmin() && hasAppCheckToken();
+    }
+
+    match /admin/uiConfig {
+      allow read: if true;
+      allow write: if isAdmin() && hasAppCheckToken();
+    }
+
+    match /admin/{document=**} {
+      allow read, write: if isAdmin() && hasAppCheckToken();
+    }
+
+    match /adminThemes/{themeId} {
+      allow read, write: if isAdmin() && hasAppCheckToken();
+
+      match /versions/{versionId} {
+        allow read: if isPublishedStatus(resource.data.status) || isAdmin();
+        allow create: if adminDraftCreateAllowed();
+        allow update: if adminDraftUpdateAllowed();
+        allow delete: if hasAppCheckToken() && isAdmin() && isDraftStatus(resource.data.status);
+      }
+    }
+
+    match /adminUiConfigs/{contextId} {
+      allow read, write: if isAdmin() && hasAppCheckToken();
+
+      match /versions/{versionId} {
+        allow read: if isPublishedStatus(resource.data.status) || isAdmin();
+        allow create: if adminDraftCreateAllowed();
+        allow update: if adminDraftUpdateAllowed();
+        allow delete: if hasAppCheckToken() && isAdmin() && isDraftStatus(resource.data.status);
+      }
+    }
+
+    match /adminOverlays/{overlayId} {
+      allow read, write: if isAdmin() && hasAppCheckToken();
+
+      match /versions/{versionId} {
+        allow read: if isPublishedStatus(resource.data.status) || isAdmin();
+        allow create: if adminDraftCreateAllowed();
+        allow update: if adminDraftUpdateAllowed();
+        allow delete: if hasAppCheckToken() && isAdmin() && isDraftStatus(resource.data.status);
+      }
+    }
+
+    match /securityEvents/{eventId} {
+      allow read, write: if isAdmin() && hasAppCheckToken();
+    }
+
+    match /shopProducts/{productId} {
+      allow read, write: if isAdmin() && hasAppCheckToken();
+    }
+
+    match /shopOrders/{orderId} {
+      allow read, write: if isAdmin() && hasAppCheckToken();
+    }
+
+    match /shopCustomers/{customerId} {
+      allow read, write: if isAdmin() && hasAppCheckToken();
+    }
+
+    match /shopIntegrations/{integrationId} {
+      allow read, write: if isAdmin() && hasAppCheckToken();
+    }
+
+    match /placeHistoryEdits/{any=**} {
+      allow read, write: if isAdmin() && hasAppCheckToken();
+    }
+
+    match /userPlaces/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if hasAppCheckToken()
+        && isOwner(userId)
+        && allowedFields(["places"])
+        && isValidUserPlaces();
+    }
+
+    match /userSettings/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if hasAppCheckToken()
+        && isOwner(userId)
+        && allowedFields(allowedUserSettingsFields())
+        && isValidUserSettingsPayload();
+    }
+
+    match /places/{placeId} {
+      allow read: if !resource.data.proOnly || (isSignedIn() && isPro());
+      allow create: if hasAppCheckToken()
+        && isSignedIn()
+        && request.resource.data.addedBy == request.auth.uid
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.lat is number
+        && request.resource.data.lng is number
+        && (!request.resource.data.proOnly || isPro())
+        && allowedFields(allowedPlaceFields())
+        && isValidPlacePayload();
+      allow update: if hasAppCheckToken() && (
+        (isSignedIn()
+          && resource.data.addedBy == request.auth.uid
+          && (!request.resource.data.proOnly || isPro())
+          && (!resource.data.proOnly || isPro())
+          && allowedFields(allowedPlaceFields())
+          && isValidPlacePayload())
+        || (isAdmin()
+          && onlyFieldsChanged([
+            "historyTitle",
+            "historyShort",
+            "historyShortHtml",
+            "historyFull",
+            "historyFullHtml",
+            "historyImages",
+            "historyIsPro",
+            "historyUpdatedBy",
+            "historyUpdatedAt",
+            "updatedAt",
+            "adminNotes",
+          ]))
+      );
+      // Seul mon UID peut éditer les champs d’histoire depuis le dashboard
+      allow delete: if hasAppCheckToken()
+        && isSignedIn()
+        && resource.data.addedBy == request.auth.uid
+        && (!request.resource.data.proOnly || isPro())
+        && (!resource.data.proOnly || isPro());
+
+      match /photos/{photoId} {
+        allow read: if !resource.data.proOnly || (isSignedIn() && isPro());
+        allow create: if hasAppCheckToken()
+          && isSignedIn()
+          && request.resource.data.uploadedByUid == request.auth.uid;
+        allow delete: if hasAppCheckToken() && isSignedIn() && request.auth.uid == resource.data.uploadedByUid;
+      }
+    }
+
+    match /comments/{commentId} {
+      allow read: if isSignedIn();
+      allow create: if hasAppCheckToken()
+        && isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && isStringLength(request.resource.data.text, 1000);
+      allow update: if hasAppCheckToken()
+        && isSignedIn()
+        && onlyFieldsChanged(["likedBy"]);
+      allow delete: if hasAppCheckToken()
+        && isSignedIn()
+        && request.auth.uid == resource.data.userId;
+    }
+
+    match /missions/{missionId} {
+      allow read: if isSignedIn();
+      allow write: if false; // réservé au backend
+    }
+
+    match /enigmas/{enigmaId} {
+      allow read: if isSignedIn();
+    }
+
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+
+      allow create: if hasAppCheckToken()
+        && isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && allowedFields(allowedPostFields())
+        && isValidPostPayload();
+
+      allow update: if hasAppCheckToken() && (
+        isOwner(resource.data.userId)
+        || (isSignedIn() && onlyFieldsChanged(["reactions", "reactionBy", "commentsCount"]))
+      );
+
+      allow delete: if hasAppCheckToken() && isOwner(resource.data.userId);
+
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if hasAppCheckToken()
+          && isSignedIn()
+          && request.resource.data.userId == request.auth.uid
+          && isStringLength(request.resource.data.text, 1000);
+        allow update: if hasAppCheckToken() && isOwner(resource.data.userId);
+        allow delete: if hasAppCheckToken() && isOwner(resource.data.userId);
+      }
+    }
+
+    match /follows/{followId} {
+      allow read: if isSignedIn();
+      allow create: if hasAppCheckToken() && isSignedIn() && request.resource.data.fromUid == request.auth.uid;
+      allow delete: if hasAppCheckToken() && isSignedIn() && request.auth.uid == resource.data.fromUid;
+      allow update: if false;
+    }
+
+    match /stories/{userId}/items/{storyId} {
+      // Soft expiry enforcement: no reads after expiration.
+      allow read: if isSignedIn() && request.time < resource.data.expiresAt;
+
+      allow create: if hasAppCheckToken()
+        && isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.userId == userId
+        && allowedFields(allowedStoryFields())
+        && isValidStoryPayload();
+
+      allow update: if hasAppCheckToken() && (
+        isOwner(resource.data.userId)
+        || (isSignedIn() && onlyFieldsChanged(["reactions", "reactionBy"]))
+      );
+
+      allow delete: if hasAppCheckToken() && isOwner(resource.data.userId);
+    }
+
+    match /conversations/{conversationId} {
+      function conv() {
+        return get(/databases/$(database)/documents/conversations/$(conversationId));
+      }
+      allow read: if isSignedIn()
+        && conv().data.participantIds is list
+        && request.auth.uid in conv().data.participantIds;
+      allow update: if hasAppCheckToken()
+        && isSignedIn()
+        && conv().data.participantIds is list
+        && request.auth.uid in conv().data.participantIds;
+      allow create: if hasAppCheckToken()
+        && isSignedIn()
+        && isValidParticipantList(request.resource.data.participantIds)
+        && request.auth.uid in request.resource.data.participantIds
+        && allowedFields(allowedConversationFields());
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && request.auth.uid in conv().data.participantIds;
+        allow create: if hasAppCheckToken()
+          && isSignedIn()
+          && request.auth.uid in conv().data.participantIds
+          && allowedFields(allowedMessageFields())
+          && isValidMessagePayload();
+        allow update: if hasAppCheckToken()
+          && isSignedIn()
+          && request.auth.uid in conv().data.participantIds
+          && onlyFieldsChanged(["seenBy"]);
+        allow delete: if hasAppCheckToken()
+          && isSignedIn()
+          && request.auth.uid in conv().data.participantIds;
+      }
+    }
+
+    match /proGameSessions/{sessionId} {
+      allow read: if isSignedIn()
+        && isPro()
+        && resource.data.ownerId == request.auth.uid;
+
+      allow create: if hasAppCheckToken()
+        && isSignedIn()
+        && isPro()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.location is string
+        && request.resource.data.discoveredIds is list
+        && request.resource.data.tension is number
+        && request.resource.data.rank is string
+        && request.resource.data.durationMs is number
+        && request.resource.data.highlights is list
+        && allowedFields(allowedProGameSessionFields());
+
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

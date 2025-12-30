@@ -1,0 +1,73 @@
+.payment-security-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 1120px;
+  margin: 0 auto;
+  color: #fdf5ff;
+}
+
+.ps-hero {
+  background: radial-gradient(circle at 14% 20%, rgba(255, 17, 136, 0.1), transparent 32%),
+    radial-gradient(circle at 80% 10%, rgba(0, 255, 255, 0.08), transparent 30%),
+    rgba(7, 9, 22, 0.9);
+}
+
+.ps-intro {
+  margin: 14px 0 16px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.ps-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.ps-section h2 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ps-section p {
+  margin: 6px 0 10px;
+  line-height: 1.5;
+}
+
+.ps-section ul,
+.ps-summary ul {
+  padding-left: 1.2rem;
+  margin: 0.4rem 0 0;
+  color: #f8ecff;
+}
+
+.ps-section li::marker,
+.ps-summary li::marker {
+  color: #ff33cc;
+}
+
+.ps-summary h2 {
+  margin: 0 0 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ps-legal {
+  padding: 20px;
+}
+
+@media (max-width: 640px) {
+  .ps-hero,
+  .ps-summary {
+    padding: 20px;
+  }
+}

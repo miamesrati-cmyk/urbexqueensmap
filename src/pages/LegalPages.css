@@ -1,0 +1,111 @@
+.legal-page {
+  padding: 2rem 1.5rem 3rem;
+  max-width: 960px;
+  margin: 0 auto;
+  color: #fdf5ff;
+  font-family: "Inter", sans-serif;
+}
+
+.legal-card {
+  background: linear-gradient(160deg, rgba(10, 6, 20, 0.9), rgba(18, 10, 30, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.6rem 1.8rem;
+  box-shadow:
+    0 22px 48px rgba(0, 0, 0, 0.55),
+    0 0 16px rgba(255, 0, 180, 0.15);
+  backdrop-filter: blur(16px);
+  position: relative;
+}
+
+.legal-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 0, 160, 0.35);
+  color: #ffbee8;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.legal-title {
+  margin: 0 0 0.6rem;
+  font-size: 2rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: linear-gradient(110deg, #ff4b8c, #8f6bff);
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.legal-lead {
+  font-size: 1rem;
+  opacity: 0.9;
+  margin-bottom: 1.4rem;
+  line-height: 1.6;
+}
+
+.legal-section {
+  padding: 1.1rem 1.2rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 1rem;
+}
+
+.legal-section h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.legal-section p {
+  margin: 0.1rem 0 0.4rem;
+  line-height: 1.5;
+}
+
+.legal-section ul {
+  margin: 0.4rem 0 0.2rem 1.2rem;
+  color: #f8ecff;
+}
+
+.legal-section li {
+  margin: 0.2rem 0;
+}
+
+.legal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.uq-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.uq-close-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 10px rgba(207, 30, 252, 0.7);
+}

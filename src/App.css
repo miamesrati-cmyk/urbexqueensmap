@@ -1,0 +1,22 @@
+import MapView from "./components/MapView";
+
+export default function App() {
+  return (
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="logo">URBEXQUEENS</div>
+        <div className="right-actions">
+          {/* tu pourras remettre AuthBar ici */}
+          <button className="btn-primary">Connexion</button>
+        </div>
+      </header>
+
+      <div className="content">
+        {/* panneau à gauche ou à droite plus tard */}
+        <div className="map-wrapper">
+          <MapView />
+        </div>
+      </div>
+    </div>
+  );
+}
