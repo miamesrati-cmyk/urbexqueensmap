@@ -193,6 +193,20 @@
   box-shadow: 0 0 12px rgba(74, 244, 255, 0.3);
 }
 
+/* 🕰️ V4: Intelligence mode locked (non-PRO) */
+.time-rift-mode.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.time-rift-mode.locked:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+}
+
 /* Year slider/presets */
 .time-rift-slider {
   display: flex;

@@ -3157,7 +3157,6 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
             // V4 NEW: Intelligence mode props
             era={timeRiftEra}
             onEraChange={handleEraChange}
-            showIntelligenceMode={isIntelligenceModeEnabled() && isPro}
             isPro={isPro}
           />
           

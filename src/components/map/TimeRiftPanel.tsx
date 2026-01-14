@@ -3,7 +3,7 @@ export type HistoryMode = "archives" | "decay" | "thenNow" | "intelligence";
 
 // V4: Import types for era control
 import type { EraBucket } from "../../utils/timeRiftIntelligence";
-import { bucketLabel } from "../../utils/timeRiftIntelligence";
+import { bucketLabel, isIntelligenceModeEnabled } from "../../utils/timeRiftIntelligence";
 
 type Props = {
   active: boolean;
@@ -15,8 +15,7 @@ type Props = {
   // V4 NEW: Intelligence mode props (optional, feature flag gated)
   era?: EraBucket;
   onEraChange?: (era: EraBucket) => void;
-  showIntelligenceMode?: boolean; // Feature flag passed from parent
-  isPro?: boolean; // For PRO gating pills
+  isPro?: boolean; // For PRO gating (Intelligence chip disabled if false)
 };
 
 const YEAR_PRESETS = [
@@ -48,7 +47,6 @@ export default function TimeRiftPanel({
   // V4 NEW:
   era = "all",
   onEraChange,
-  showIntelligenceMode = false,
   isPro = false,
 }: Props) {
   if (!active) return null;
@@ -92,15 +90,17 @@ export default function TimeRiftPanel({
         >
           ⏳ THEN/NOW
         </button>
-        {/* V4: INTELLIGENCE chip (feature flag gated) */}
-        {showIntelligenceMode && (
+        {/* V4: INTELLIGENCE chip (feature flag gated, disabled if not PRO) */}
+        {isIntelligenceModeEnabled() && (
           <button
             type="button"
-            className={`time-rift-mode ${mode === "intelligence" ? "active" : ""}`}
-            onClick={() => onModeChange("intelligence")}
+            className={`time-rift-mode ${mode === "intelligence" ? "active" : ""} ${!isPro ? "locked" : ""}`}
+            onClick={() => isPro && onModeChange("intelligence")}
             aria-pressed={mode === "intelligence"}
+            disabled={!isPro}
+            title={!isPro ? "Intelligence Mode - PRO uniquement" : "Intelligence Mode - Analyse historique par ère"}
           >
-            🧠 INTELLIGENCE
+            🧠 INTELLIGENCE {!isPro && "🔒"}
           </button>
         )}
       </div>
