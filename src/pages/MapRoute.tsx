@@ -103,6 +103,7 @@ import {
   isIntelligenceModeEnabled,
   filterSpotsByBucket as _filterSpotsByBucket, // Step 4 (Overlay)
   spotsToGeoJSON, // Step 4 (Overlay)
+  getSpotYear, // Step 4 (Debug)
 } from "../utils/timeRiftIntelligence";
 import {
   getSpotTier,
@@ -300,6 +301,32 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
       }
     }
   }, [routePlannerActive]);
+
+  // 🕰️ TIME RIFT V4 DEBUG: Intelligence Mode Gating
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      const flagEnabled = isIntelligenceModeEnabled();
+      const showChip = flagEnabled && isPro;
+      
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log("🕰️ TIME RIFT V4 - INTELLIGENCE MODE DIAGNOSTIC");
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log("📊 ENV FLAG:", import.meta.env.VITE_TIME_RIFT_INTELLIGENCE_ENABLED);
+      console.log("🔧 isIntelligenceModeEnabled():", flagEnabled);
+      console.log("👑 isPro:", isPro);
+      console.log("👤 User:", user?.email || "guest");
+      console.log("🎯 showIntelligenceMode (chip visible):", showChip);
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      
+      if (!flagEnabled) {
+        console.warn("⚠️ FLAG OFF → Enable in .env.local: VITE_TIME_RIFT_INTELLIGENCE_ENABLED=true");
+      } else if (!isPro) {
+        console.warn("⚠️ USER NOT PRO → Intelligence chip hidden (PRO required)");
+      } else {
+        console.log("✅ INTELLIGENCE MODE AVAILABLE → 🧠 chip should be visible");
+      }
+    }
+  }, [isPro, user]);
   
   // ═══════════════════════════════════════════════════════════════
   // UX FAIL-SAFE: Show toast when ROUTE activated, hide after 3s or first waypoint
@@ -2534,6 +2561,19 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
     const intelEnabled = isIntelligenceModeEnabled();
     const shouldShowOverlay = intelEnabled && historyMode === "intelligence" && historyActive && isPro;
 
+    if (import.meta.env.DEV) {
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log("🕰️ TIME RIFT INTEL - OVERLAY UPDATE");
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log("🔧 intelEnabled:", intelEnabled);
+      console.log("📊 historyMode:", historyMode);
+      console.log("✅ historyActive:", historyActive);
+      console.log("👑 isPro:", isPro);
+      console.log("🎯 shouldShowOverlay:", shouldShowOverlay);
+      console.log("🌍 timeRiftEra:", timeRiftEra);
+      console.log("📍 Total places:", places.length);
+    }
+
     if (!shouldShowOverlay) {
       // Hide overlay + clear data
       intelSource.setData({ type: "FeatureCollection", features: [] });
@@ -2545,7 +2585,9 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
       });
 
       if (import.meta.env.DEV) {
-        console.log("[TIME RIFT INTEL] Overlay hidden (mode off or non-PRO)");
+        console.log("❌ Overlay hidden:", {
+          reason: !intelEnabled ? "flag OFF" : !historyActive ? "history OFF" : historyMode !== "intelligence" ? "wrong mode" : "not PRO"
+        });
       }
       return;
     }
@@ -2553,6 +2595,22 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
     // Generate filtered GeoJSON
     const intelSpots = _filterSpotsByBucket(places, timeRiftEra);
     const intelGeo = spotsToGeoJSON(intelSpots);
+
+    if (import.meta.env.DEV) {
+      console.log("📊 Filtered spots:", intelSpots.length, "/", places.length);
+      console.log("📊 GeoJSON features:", intelGeo.features.length);
+      
+      // Sample first 3 spots to see if they have year data
+      if (intelSpots.length > 0) {
+        console.log("📊 Sample spots (first 3):");
+        intelSpots.slice(0, 3).forEach(spot => {
+          const year = getSpotYear(spot);
+          console.log("  -", spot.title, "| Year:", year || "unknown");
+        });
+      } else {
+        console.warn("⚠️ NO SPOTS after filter! Check getSpotYear() implementation");
+      }
+    }
 
     // Update source
     intelSource.setData(intelGeo);
@@ -2565,7 +2623,8 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
     });
 
     if (import.meta.env.DEV) {
-      console.log(`[TIME RIFT INTEL] Overlay updated: ${intelSpots.length} spots (era: ${timeRiftEra})`);
+      console.log("✅ OVERLAY VISIBLE:", intelSpots.length, "spots (era:", timeRiftEra, ")");
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     }
   }, [mapInstance, historyMode, historyActive, isPro, timeRiftEra, places, layersVersion]);
   // ↑ layersVersion ensures re-run after style.load
