@@ -102,6 +102,7 @@ import {
   type EraBucket,
   isIntelligenceModeEnabled,
   filterSpotsByBucket as _filterSpotsByBucket, // Step 4 (Overlay)
+  spotsToGeoJSON, // Step 4 (Overlay)
 } from "../utils/timeRiftIntelligence";
 import {
   getSpotTier,
@@ -150,6 +151,11 @@ const CLUSTER_LAYER_CIRCLES_ID = "uq-cluster-circles";
 const CLUSTER_LAYER_COUNT_ID = "uq-cluster-count";
 const CLUSTER_LAYER_IDS = [CLUSTER_LAYER_CIRCLES_ID, CLUSTER_LAYER_COUNT_ID];
 const PLAIN_LAYER_IDS = ["spots-circle", "spots-icon"];
+
+// 🕰️ TIME RIFT V4 STEP 4: Intelligence Overlay constants
+const TIME_RIFT_INTEL_SOURCE_ID = "uq-time-rift-intel";
+const TIME_RIFT_INTEL_HEATMAP_ID = "uq-time-rift-intel-heatmap";
+const TIME_RIFT_INTEL_GLOW_ID = "uq-time-rift-intel-glow";
 
 // ═══════════════════════════════════════════════════════════════
 // ROUTE PLANNER: All interactive pin layers for click handlers
@@ -1928,6 +1934,111 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
       console.log("[INIT] Route planner layers ready");
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // 🕰️ TIME RIFT V4 STEP 4: Intelligence Overlay (Heatmap + Glow)
+    // ═══════════════════════════════════════════════════════════════
+    if (!mapInstance.getSource(TIME_RIFT_INTEL_SOURCE_ID)) {
+      mapInstance.addSource(TIME_RIFT_INTEL_SOURCE_ID, {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      if (import.meta.env.DEV) {
+        console.log("[INIT] Created Time Rift Intelligence source");
+      }
+    }
+
+    // Heatmap layer (visible at low zoom)
+    if (!mapInstance.getLayer(TIME_RIFT_INTEL_HEATMAP_ID)) {
+      mapInstance.addLayer({
+        id: TIME_RIFT_INTEL_HEATMAP_ID,
+        type: "heatmap",
+        source: TIME_RIFT_INTEL_SOURCE_ID,
+        maxzoom: 12, // Fade out at higher zoom
+        layout: {
+          visibility: "none", // Hidden by default, controlled by intelligence mode
+        },
+        paint: {
+          // Heatmap weight (uniform for all spots, can be customized later)
+          "heatmap-weight": 1,
+          // Heatmap intensity by zoom level
+          "heatmap-intensity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            0, 0.5,
+            9, 1.5
+          ],
+          // Heatmap color gradient (purple to cyan)
+          "heatmap-color": [
+            "interpolate",
+            ["linear"],
+            ["heatmap-density"],
+            0, "rgba(138, 43, 226, 0)", // Transparent purple
+            0.2, "rgba(138, 43, 226, 0.3)",
+            0.4, "rgba(75, 0, 130, 0.5)",
+            0.6, "rgba(72, 118, 255, 0.7)",
+            0.8, "rgba(0, 191, 255, 0.8)",
+            1, "rgba(0, 255, 255, 0.9)" // Bright cyan
+          ],
+          // Radius of influence for each point
+          "heatmap-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            0, 10,
+            9, 30
+          ],
+          // Fade out heatmap as we zoom in
+          "heatmap-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            7, 0.8,
+            11, 0.3,
+            12, 0
+          ],
+        },
+      });
+      if (import.meta.env.DEV) {
+        console.log("[INIT] Created Time Rift Intelligence heatmap layer");
+      }
+    }
+
+    // Glow circles layer (visible at high zoom)
+    if (!mapInstance.getLayer(TIME_RIFT_INTEL_GLOW_ID)) {
+      mapInstance.addLayer({
+        id: TIME_RIFT_INTEL_GLOW_ID,
+        type: "circle",
+        source: TIME_RIFT_INTEL_SOURCE_ID,
+        minzoom: 11, // Only visible at higher zoom
+        layout: {
+          visibility: "none", // Hidden by default
+        },
+        paint: {
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            11, 8,
+            16, 20
+          ],
+          "circle-color": "rgba(138, 43, 226, 0.4)", // Purple glow
+          "circle-blur": 1.2, // Heavy blur for glow effect
+          "circle-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            11, 0,
+            12, 0.6,
+            16, 0.8
+          ],
+        },
+      });
+      if (import.meta.env.DEV) {
+        console.log("[INIT] Created Time Rift Intelligence glow layer");
+      }
+    }
+
     // ✅ Verify sources exist (mandatory)
     const clusterSourceExists = !!mapInstance.getSource(CLUSTER_SOURCE_ID);
     const plainSourceExists = !!mapInstance.getSource(PLAIN_SOURCE_ID);
@@ -2396,6 +2507,69 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
     }
   }, [mapInstance, historyActive, historyMode, historyYear, isPro, decayGeoJSON, places.length, uiConfig.accentColor]);
 
+  // ═══════════════════════════════════════════════════════════════
+  // 🕰️ TIME RIFT V4 STEP 4: Intelligence Overlay (Heatmap + Glow)
+  // Updates overlay data based on intelligence mode + era filter
+  // ═══════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    // Wait for layers to be ready
+    if (!layersReadyRef.current) {
+      if (import.meta.env.DEV) {
+        console.log("[TIME RIFT INTEL] Layers not ready, deferring");
+      }
+      return;
+    }
+
+    const intelSource = mapInstance.getSource(TIME_RIFT_INTEL_SOURCE_ID) as mapboxgl.GeoJSONSource | null;
+    if (!intelSource) {
+      if (import.meta.env.DEV) {
+        console.warn("[TIME RIFT INTEL] Source not found");
+      }
+      return;
+    }
+
+    // Check feature flag
+    const intelEnabled = isIntelligenceModeEnabled();
+    const shouldShowOverlay = intelEnabled && historyMode === "intelligence" && historyActive && isPro;
+
+    if (!shouldShowOverlay) {
+      // Hide overlay + clear data
+      intelSource.setData({ type: "FeatureCollection", features: [] });
+      
+      [TIME_RIFT_INTEL_HEATMAP_ID, TIME_RIFT_INTEL_GLOW_ID].forEach(layerId => {
+        if (mapInstance.getLayer(layerId)) {
+          mapInstance.setLayoutProperty(layerId, "visibility", "none");
+        }
+      });
+
+      if (import.meta.env.DEV) {
+        console.log("[TIME RIFT INTEL] Overlay hidden (mode off or non-PRO)");
+      }
+      return;
+    }
+
+    // Generate filtered GeoJSON
+    const intelSpots = _filterSpotsByBucket(places, timeRiftEra);
+    const intelGeo = spotsToGeoJSON(intelSpots);
+
+    // Update source
+    intelSource.setData(intelGeo);
+
+    // Show overlay layers
+    [TIME_RIFT_INTEL_HEATMAP_ID, TIME_RIFT_INTEL_GLOW_ID].forEach(layerId => {
+      if (mapInstance.getLayer(layerId)) {
+        mapInstance.setLayoutProperty(layerId, "visibility", "visible");
+      }
+    });
+
+    if (import.meta.env.DEV) {
+      console.log(`[TIME RIFT INTEL] Overlay updated: ${intelSpots.length} spots (era: ${timeRiftEra})`);
+    }
+  }, [mapInstance, historyMode, historyActive, isPro, timeRiftEra, places, layersVersion]);
+  // ↑ layersVersion ensures re-run after style.load
+
   // 🕰️ TIME RIFT HARD OFF (centralized cleanup)
   // ═══════════════════════════════════════════════════════════════
   // All exit paths MUST use this function:
@@ -2411,12 +2585,24 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
 
     // Fail-safe Mapbox cleanup (if layers/sources exist)
     if (mapInstance) {
+      // Cleanup decay layer
       if (mapInstance.getLayer("history-decay-layer")) {
         mapInstance.setLayoutProperty("history-decay-layer", "visibility", "none");
       }
       const source = mapInstance.getSource("history-decay") as mapboxgl.GeoJSONSource | undefined;
       if (source) {
         source.setData({ type: "FeatureCollection", features: [] });
+      }
+
+      // 🕰️ V4: Cleanup intelligence overlay
+      [TIME_RIFT_INTEL_HEATMAP_ID, TIME_RIFT_INTEL_GLOW_ID].forEach(layerId => {
+        if (mapInstance.getLayer(layerId)) {
+          mapInstance.setLayoutProperty(layerId, "visibility", "none");
+        }
+      });
+      const intelSource = mapInstance.getSource(TIME_RIFT_INTEL_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
+      if (intelSource) {
+        intelSource.setData({ type: "FeatureCollection", features: [] });
       }
     }
 
