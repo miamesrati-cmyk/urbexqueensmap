@@ -54,4 +54,13 @@ export function UrbexButton({
   );
 }
 
+type UrbexGlassProps = {
+  children: ReactNode;
+  className?: string;
+};
+
+export function UrbexGlass({ children, className = "" }: UrbexGlassProps) {
+  return <div className={`urbex-glass ${className}`}>{children}</div>;
+}
+
 export { PageContainer, SectionCard };

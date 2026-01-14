@@ -4,6 +4,7 @@ import { type User, onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { useLiveUserProfile } from "../hooks/useLiveUserProfiles";
 import { useAuthUI } from "../contexts/useAuthUI";
+import { useToast } from "../contexts/useToast";
 
 export default function AuthBar() {
   const [user, setUser] = useState<User | null>(null);
@@ -15,6 +16,7 @@ export default function AuthBar() {
     user?.email?.split("@")[0] ||
     "explorateur";
   const avatarUrl = profile?.photoURL || user?.photoURL || null;
+  const toast = useToast();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -28,7 +30,7 @@ export default function AuthBar() {
       await signOut(auth);
     } catch (err) {
       console.error(err);
-      alert("Impossible de se déconnecter pour le moment.");
+      toast.error("Impossible de se déconnecter pour le moment.");
     }
   };
 

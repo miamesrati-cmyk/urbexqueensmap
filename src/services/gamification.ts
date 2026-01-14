@@ -1,9 +1,11 @@
 import {
   doc,
-  onSnapshot,
+  
   runTransaction,
   setDoc,
+  type Transaction,
 } from "firebase/firestore";
+import { onSnapshot } from "../lib/firestoreHelpers";
 import { db } from "../lib/firebase";
 import { ensureWritesAllowed } from "../lib/securityGuard";
 
@@ -13,6 +15,56 @@ export type UserGamification = {
   level: number;
   completedQuests?: string[];
 };
+
+export type XpOptions = {
+  isPro?: boolean;
+};
+
+export type XpUpdateResult = {
+  xp: number;
+  level: number;
+  xpGain: number;
+};
+
+export const PRO_XP_MULTIPLIER = 1.2;
+
+export function applyProXpMultiplier(xp: number, isPro?: boolean) {
+  if (!isPro) return xp;
+  const boosted = Math.round(xp * PRO_XP_MULTIPLIER);
+  return boosted > xp ? boosted : xp;
+}
+
+export async function applyXpDeltaInTransaction(
+  tx: Transaction,
+  uid: string,
+  delta: number,
+  options?: XpOptions
+): Promise<XpUpdateResult> {
+  const safeDelta = Math.max(0, Math.round(delta));
+  const effectiveGain = applyProXpMultiplier(safeDelta, options?.isPro);
+  const ref = doc(db, "userGamification", uid);
+  const snap = await tx.get(ref);
+
+  let xp = 0;
+  if (snap.exists()) {
+    const data = snap.data() as any;
+    xp = typeof data.xp === "number" ? data.xp : 0;
+  }
+
+  xp += effectiveGain;
+  const level = computeLevelFromXp(xp);
+
+  tx.set(
+    ref,
+    {
+      xp,
+      level,
+    },
+    { merge: true }
+  );
+
+  return { xp, level, xpGain: effectiveGain };
+}
 
 // Fonction simple de calcul de niveau : 100 XP par niveau
 export function computeLevelFromXp(xp: number): number {
@@ -57,32 +109,10 @@ export function listenUserGamification(
 }
 
 // Ajouter de l'XP de façon transactionnelle
-export async function addXpToUser(uid: string, delta: number) {
+export async function addXpToUser(uid: string, delta: number, options?: XpOptions) {
   ensureWritesAllowed();
-  const ref = doc(db, "userGamification", uid);
   await runTransaction(db, async (tx) => {
-    const snap = await tx.get(ref);
-    let xp = 0;
-    let level = 1;
-
-    if (snap.exists()) {
-      const data = snap.data() as any;
-      xp = typeof data.xp === "number" ? data.xp : 0;
-    }
-
-    xp += delta;
-    if (xp < 0) xp = 0;
-
-    level = computeLevelFromXp(xp);
-
-    tx.set(
-      ref,
-      {
-        xp,
-        level,
-      },
-      { merge: true }
-    );
+    await applyXpDeltaInTransaction(tx, uid, delta, options);
   });
 }
 
@@ -90,35 +120,31 @@ export async function addXpToUser(uid: string, delta: number) {
 export async function completeQuest(
   uid: string,
   questId: string,
-  xpReward: number
+  xpReward: number,
+  options?: XpOptions
 ) {
   ensureWritesAllowed();
   const ref = doc(db, "userGamification", uid);
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
-    let xp = 0;
     let completed: string[] = [];
-
     if (snap.exists()) {
       const data = snap.data() as any;
-      xp = typeof data.xp === "number" ? data.xp : 0;
       if (Array.isArray(data.completedQuests)) {
         completed = data.completedQuests;
       }
     }
 
-    if (!completed.includes(questId)) {
-      completed.push(questId);
-      xp += xpReward;
+    if (completed.includes(questId)) {
+      return;
     }
 
-    const level = computeLevelFromXp(xp);
+    completed = [...completed, questId];
+    await applyXpDeltaInTransaction(tx, uid, xpReward, options);
 
     tx.set(
       ref,
       {
-        xp,
-        level,
         completedQuests: completed,
       },
       { merge: true }
@@ -153,8 +179,12 @@ export function getXpForEvent(type: XpEventType): number {
   }
 }
 
-export async function awardXpForEvent(uid: string, type: XpEventType) {
+export async function awardXpForEvent(
+  uid: string,
+  type: XpEventType,
+  options?: XpOptions
+) {
   const delta = getXpForEvent(type);
   if (delta <= 0) return;
-  await addXpToUser(uid, delta);
+  await addXpToUser(uid, delta, options);
 }

@@ -1,0 +1,157 @@
+/* ═══════════════════════════════════════════════════════════
+   MAPBOX CONTROLS - Design cohérent et élégant
+   Style premium qui matche avec le reste du site
+   ═══════════════════════════════════════════════════════════ */
+
+/* Reset complet des contrôles Mapbox */
+.mapboxgl-ctrl-top-right {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  gap: 10px !important;
+  padding: 16px !important;
+}
+
+/* Groupe de contrôles - Design glassmorphism élégant */
+.mapboxgl-ctrl-group,
+.mapboxgl-ctrl-group:not(:empty) {
+  background: rgba(11, 10, 20, 0.85) !important;
+  border: 1px solid rgba(186, 104, 200, 0.25) !important;
+  border-radius: 12px !important;
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
+  backdrop-filter: blur(16px) saturate(150%) !important;
+  overflow: visible !important;
+  padding: 6px !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  width: auto !important;
+  min-width: 40px !important;
+}
+
+/* Tous les boutons dans le groupe - Élégants et espacés */
+.mapboxgl-ctrl-group > button,
+.mapboxgl-ctrl-group button {
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 10px !important;
+  position: relative !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+/* Pas de bordures arrondies spéciales, tous les boutons individuels */
+.mapboxgl-ctrl-group > button:first-child,
+.mapboxgl-ctrl-group > button:last-child,
+.mapboxgl-ctrl-group > button:only-child {
+  border-radius: 10px !important;
+}
+
+/* Pas de séparateur, mais un gap propre */
+.mapboxgl-ctrl-group > button + button {
+  border-top: none !important;
+  margin-top: 0 !important;
+}
+
+/* Hover élégant avec scale et glow */
+.mapboxgl-ctrl-group > button:hover {
+  background: rgba(186, 104, 200, 0.15) !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 0 12px rgba(186, 104, 200, 0.25) !important;
+}
+
+/* Active/pressed */
+.mapboxgl-ctrl-group > button:active {
+  background: rgba(236, 64, 122, 0.25) !important;
+  transform: scale(0.95) !important;
+}
+
+/* Fullscreen button individuel */
+.mapboxgl-ctrl-fullscreen,
+button.mapboxgl-ctrl-fullscreen {
+  background: rgba(11, 10, 20, 0.85) !important;
+  border: 1px solid rgba(186, 104, 200, 0.25) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(16px) saturate(150%) !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 6px !important;
+  margin: 0 !important;
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.mapboxgl-ctrl-fullscreen:hover {
+  background: rgba(186, 104, 200, 0.15) !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 0 12px rgba(186, 104, 200, 0.25) !important;
+}
+
+/* Geolocate button individuel */
+.mapboxgl-ctrl-geolocate,
+button.mapboxgl-ctrl-geolocate {
+  background: rgba(11, 10, 20, 0.85) !important;
+  border: 1px solid rgba(186, 104, 200, 0.25) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(16px) saturate(150%) !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 6px !important;
+  margin: 0 !important;
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.mapboxgl-ctrl-geolocate:hover {
+  background: rgba(186, 104, 200, 0.15) !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 0 12px rgba(186, 104, 200, 0.25) !important;
+}
+
+.mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-active {
+  background: rgba(236, 64, 122, 0.3) !important;
+  border-color: rgba(236, 64, 122, 0.6) !important;
+  box-shadow: 
+    0 0 20px rgba(236, 64, 122, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset !important;
+}
+
+/* Icons blancs avec opacité */
+.mapboxgl-ctrl-icon {
+  filter: brightness(0) invert(1) !important;
+  opacity: 0.85 !important;
+  transition: opacity 0.3s ease !important;
+}
+
+.mapboxgl-ctrl-group > button:hover .mapboxgl-ctrl-icon,
+.mapboxgl-ctrl-fullscreen:hover .mapboxgl-ctrl-icon,
+.mapboxgl-ctrl-geolocate:hover .mapboxgl-ctrl-icon {
+  opacity: 1 !important;
+}
+

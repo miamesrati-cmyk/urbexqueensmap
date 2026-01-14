@@ -169,26 +169,92 @@ a {
   border-color: rgba(255, 255, 255, 0.25);
 }
 
+.uq-skel,
 .uq-skeleton {
   position: relative;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
+.uq-skel--rounded,
+.uq-skeleton--rounded {
+  border-radius: 22px;
+}
+
+.uq-skel::after,
 .uq-skeleton::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.12),
+    transparent
+  );
   transform: translateX(-100%);
-  animation: uq-shimmer 1.2s ease infinite;
+  animation: uq-shimmer 1.3s ease-in-out infinite;
+}
+
+.uq-skel--static::after,
+.uq-skeleton--static::after {
+  animation: none;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uq-skel::after,
+  .uq-skeleton::after {
+    animation: none;
+  }
 }
 
 @keyframes uq-shimmer {
   to {
     transform: translateX(100%);
   }
+}
+
+.uq-skeleton-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.uq-skeleton-text-line {
+  width: 100%;
+  height: 12px;
+  border-radius: 8px;
+}
+
+.uq-skeleton-text-line:nth-child(2) {
+  width: 85%;
+}
+
+.uq-skeleton-text-line:nth-child(3) {
+  width: 70%;
+}
+
+.uq-skeleton-media {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.uq-skeleton-media__content {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.uq-skeleton-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .uq-fade-card {

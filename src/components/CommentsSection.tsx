@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { memo, useEffect, useMemo, useState, type FormEvent } from "react";
 import { listenComments, addComment } from "../services/comments";
 import { useCurrentUserRole } from "../hooks/useCurrentUserRole";
 
@@ -17,7 +17,7 @@ function formatDate(ts: number) {
   });
 }
 
-export default function CommentsSection({ placeId }: Props) {
+function CommentsSection({ placeId }: Props) {
   const [comments, setComments] = useState<any[]>([]);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -105,3 +105,7 @@ export default function CommentsSection({ placeId }: Props) {
     </div>
   );
 }
+
+// Mémoïsation pour éviter re-renders inutiles quand le parent re-render
+const MemoizedCommentsSection = memo(CommentsSection);
+export { MemoizedCommentsSection as default };

@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { v4 as uuid } from "uuid";
 import { auth } from "../lib/firebase";
-import { listenPlaces, type Place } from "../services/places";
+import {
+  listenPlacesPage,
+  type Place,
+  type PlacesPageCursor,
+} from "../services/places";
 import {
   addPostComment,
   createPost,
@@ -25,8 +29,28 @@ import type { LiveUserProfileSummary } from "../hooks/useLiveUserProfiles";
 import { shareLink } from "../utils/share";
 import { describeStorageError } from "../utils/uploadErrors";
 import UrbexFeedUserSearch from "./UrbexFeed/UserSearch";
+import UQImage from "./UQImage";
+import { QuickReactions } from "./feed/interactions/QuickReactions";
+import PullToRefreshIndicator from "./ui/PullToRefreshIndicator";
+import Skeleton from "./Skeleton";
+import { FeedPostCardSkeleton } from "./skeletons/LayoutSkeletons";
 import { useAuthUI } from "../contexts/useAuthUI";
 import type { RequireAuthOptions } from "../contexts/authUICore";
+import { useToast } from "../contexts/useToast";
+import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import { DoubleTapLike } from "./feed/interactions/DoubleTapLike";
+import { SaveButton } from "./feed/interactions/SaveButton";
+import { listenSavedPostIds } from "../services/savedPosts";
+import {
+  listenLikedPostIds,
+  likePostForUser,
+  unlikePostForUser,
+} from "../services/postsLikes";
+import { ImageCarousel } from "./feed/interactions/ImageCarousel";
+import type { MediaItem as CarouselMediaItem } from "./feed/interactions/ImageCarousel";
+import { AutoPlayVideo } from "./feed/interactions/AutoPlayVideo";
+import { ViewTracker } from "./feed/interactions/ViewTracker";
+import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 
 type ReactionHandler = (emoji: string) => void;
 
@@ -37,6 +61,9 @@ const FEED_MODES: { id: FeedMode; label: string }[] = [
   { id: "following", label: "Comptes suivis" },
   { id: "mine", label: "Mes posts" },
 ];
+
+const PLACES_PAGE_SIZE = 60;
+const VIDEO_URL_REGEX = /\.(mp4|mov|webm|mkv|ogv|ogg)(\?.*)?$/i;
 
 function relativeTime(timestamp: number) {
   const diff = Date.now() - timestamp;
@@ -59,13 +86,49 @@ function getLocationLabel(post: Post) {
   return "";
 }
 
-function FeedPostTile({ post, onOpen }: { post: Post; onOpen: (post: Post) => void }) {
+function FeedPostTile({
+  post,
+  onOpen,
+  isSaved,
+  isLiked,
+  onToggleLike,
+  onRequireAuthForSave,
+  onRequireAuthForLike,
+  onReact,
+  currentUserId,
+  isGuest,
+}: {
+  post: Post;
+  onOpen: (post: Post) => void;
+  isSaved: boolean;
+  isLiked: boolean;
+  onToggleLike: (next: boolean) => Promise<void>;
+  onRequireAuthForSave?: () => void;
+  onRequireAuthForLike?: () => void;
+  onReact: (emoji: string) => Promise<void>;
+  currentUserId: string | null;
+  isGuest: boolean;
+}) {
+  type CarouselMedia = CarouselMediaItem & { type: "image" | "video" };
+  const mediaItems: CarouselMedia[] = useMemo(
+    () =>
+      post.mediaUrls.map((url) => ({
+        url,
+        alt: post.caption || "Post urbex",
+        type: VIDEO_URL_REGEX.test(url) ? "video" : "image",
+      })),
+    [post.mediaUrls, post.caption]
+  );
+  const carouselBase: CarouselMediaItem[] = useMemo(
+    () => mediaItems.map(({ url, alt }) => ({ url, alt })),
+    [mediaItems]
+  );
+  const coverItem = mediaItems[0];
   const reactionTotal = Object.values(post.reactions || {}).reduce(
     (acc, v) => acc + (v || 0),
     0
   );
   const commentCount = post.commentsCount ?? 0;
-  const cover = post.mediaUrls[0];
   const authorName = post.authorName || "Urbex Queen";
   const avatarInitial = authorName.charAt(0).toUpperCase();
   const locationLabel = getLocationLabel(post);
@@ -82,18 +145,71 @@ function FeedPostTile({ post, onOpen }: { post: Post; onOpen: (post: Post) => vo
       : [];
   const commentRows =
     commentSnippets.length > 0 ? commentSnippets : ["Fragments de terrain", "Traces humaines"];
+  const currentReaction =
+    currentUserId && post.userReactions
+      ? post.userReactions[currentUserId] ?? null
+      : null;
+
+  const renderCarouselImage = useCallback(
+    (item: CarouselMediaItem, idx: number, isActive: boolean) => {
+      const mediaItem = mediaItems[idx];
+      if (mediaItem?.type === "video") {
+        return (
+          <AutoPlayVideo
+            src={mediaItem.url}
+            className="feed-post-cover"
+            threshold={0.65}
+          />
+        );
+      }
+
+      const image = (
+        <UQImage
+          src={mediaItem?.url ?? item.url}
+          alt={mediaItem?.alt ?? item.alt ?? "Post urbex"}
+          className="feed-post-cover"
+        />
+      );
+
+      if (!isActive) {
+        return image;
+      }
+
+      return (
+        <DoubleTapLike
+          postId={post.id}
+          isLiked={isLiked}
+          likeCount={reactionTotal}
+          onRequireAuth={onRequireAuthForLike}
+          onToggleLike={onToggleLike}
+          className="feed-post-media-surface"
+        >
+          {image}
+        </DoubleTapLike>
+      );
+    },
+    [isLiked, onRequireAuthForLike, onToggleLike, post.id, reactionTotal, mediaItems]
+  );
 
   return (
-    <button
-      type="button"
-      className="feed-post-card"
-      onClick={() => onOpen(post)}
-      aria-label="Ouvrir le post urbex"
-    >
+    <ViewTracker postId={post.id}>
+      <div
+        role="button"
+        tabIndex={0}
+        className="feed-post-card"
+        onClick={() => onOpen(post)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onOpen(post);
+          }
+        }}
+        aria-label="Ouvrir le post urbex"
+      >
       <header className="feed-post-card-header">
         <div className="feed-card-avatar">
           {post.authorAvatar ? (
-            <img src={post.authorAvatar} alt={authorName} loading="lazy" />
+            <UQImage src={post.authorAvatar} alt={authorName} />
           ) : (
             <span>{avatarInitial}</span>
           )}
@@ -111,21 +227,65 @@ function FeedPostTile({ post, onOpen }: { post: Post; onOpen: (post: Post) => vo
       </header>
 
       <div className="feed-post-media">
-        {cover ? (
-          <img
-            src={cover}
-            alt={post.caption || "Post urbex"}
-            className="feed-post-cover"
-            loading="lazy"
+        {mediaItems.length > 1 ? (
+          <ImageCarousel
+            media={carouselBase}
+            aspect="auto"
+            renderImage={renderCarouselImage}
           />
+        ) : coverItem ? (
+          coverItem.type === "video" ? (
+            <AutoPlayVideo
+              src={coverItem.url}
+              className="feed-post-cover"
+            />
+          ) : (
+            <DoubleTapLike
+              postId={post.id}
+              isLiked={isLiked}
+              likeCount={reactionTotal}
+              onRequireAuth={onRequireAuthForLike}
+              onToggleLike={onToggleLike}
+              className="feed-post-media-surface"
+            >
+              <UQImage
+                src={coverItem.url}
+                alt={coverItem.alt || "Post urbex"}
+                className="feed-post-cover"
+              />
+            </DoubleTapLike>
+          )
         ) : (
           <div className="feed-post-placeholder">📸</div>
         )}
       </div>
 
       <div className="feed-post-actions">
-        <span>❤️ {reactionTotal}</span>
+        <QuickReactions
+          postId={post.id}
+          currentReaction={currentReaction}
+          onRequireAuth={onRequireAuthForLike}
+          onReact={async (emoji: string) => onReact(emoji)}
+          isGuest={isGuest}
+        >
+          <button
+            type="button"
+            className={`feed-post-reaction-btn ${currentReaction ? "is-active" : ""}`}
+            onClick={() => onReact("🖤")}
+            aria-label="Aimer ce post"
+            aria-pressed={!!currentReaction}
+            disabled={isGuest}
+          >
+            {currentReaction || "🤍"} {reactionTotal}
+          </button>
+        </QuickReactions>
         <span>💬 {commentCount}</span>
+        <SaveButton
+          postId={post.id}
+          initialSaved={isSaved}
+          onRequireAuth={onRequireAuthForSave}
+          className="feed-post-save-btn"
+        />
         <span>🔗</span>
       </div>
 
@@ -179,9 +339,21 @@ function FeedPostTile({ post, onOpen }: { post: Post; onOpen: (post: Post) => vo
         />
         <span aria-hidden="true">↗</span>
       </div>
-    </button>
+      </div>
+    </ViewTracker>
   );
 }
+
+// Mémoïser pour éviter re-renders inutiles
+const MemoizedFeedPostTile = memo(FeedPostTile, (prev, next) => {
+  return (
+    prev.post.id === next.post.id &&
+    prev.post.createdAt === next.post.createdAt &&
+    prev.isSaved === next.isSaved &&
+    prev.isLiked === next.isLiked &&
+    prev.currentUserId === next.currentUserId
+  );
+});
 
 function applyOptimisticReaction(post: Post, userId: string, emoji: string) {
   const counts: Record<string, number> = { ...(post.reactions || {}) };
@@ -245,6 +417,7 @@ function FeedPostModal({
   const locationLabel = getLocationLabel(post);
   const mediaUrl = post.mediaUrls[0];
   const commentInputRef = useRef<HTMLInputElement | null>(null);
+  const modalDetailsRef = useRef<HTMLDivElement | null>(null);
   const authorProfile = profiles[post.userId];
   const authorDisplayName =
     authorProfile?.displayName ?? post.authorName ?? "Urbex Queen";
@@ -253,13 +426,41 @@ function FeedPostModal({
   const authorAvatar = authorProfile?.photoURL ?? post.authorAvatar;
   const authorIsPro = authorProfile?.isPro ?? post.authorIsPro ?? false;
 
+  // Forcer le scroll en haut du modal quand il s'ouvre
+  useEffect(() => {
+    // Réinitialiser immédiatement
+    if (modalDetailsRef.current) {
+      modalDetailsRef.current.scrollTop = 0;
+    }
+    
+    // Puis après le rendu avec requestAnimationFrame
+    requestAnimationFrame(() => {
+      if (modalDetailsRef.current) {
+        modalDetailsRef.current.scrollTop = 0;
+      }
+    });
+    
+    // Et une dernière fois avec un petit délai pour être sûr
+    const timer = setTimeout(() => {
+      if (modalDetailsRef.current) {
+        modalDetailsRef.current.scrollTop = 0;
+      }
+    }, 10);
+    
+    return () => clearTimeout(timer);
+  }, [post.id]);
+
   return (
     <div className="feed-post-modal">
       <div className="feed-post-modal-backdrop" onClick={onClose} />
       <div className="feed-post-modal-card" role="dialog" aria-modal="true">
         <div className="feed-post-modal-media">
           {mediaUrl ? (
-            <img src={mediaUrl} alt="" className="feed-post-modal-image" loading="lazy" />
+            <UQImage
+              src={mediaUrl}
+              alt=""
+              className="feed-post-modal-image"
+            />
           ) : (
             <div className="feed-post-modal-placeholder">📸</div>
           )}
@@ -268,7 +469,7 @@ function FeedPostModal({
             <span className="feed-post-modal-more">+{post.mediaUrls.length - 1}</span>
           )}
         </div>
-        <div className="feed-post-modal-details">
+        <div className="feed-post-modal-details" ref={modalDetailsRef}>
           <div className="feed-post-modal-header">
             <button
               type="button"
@@ -279,7 +480,7 @@ function FeedPostModal({
             >
               <div className="ig-avatar">
                 {authorAvatar ? (
-                  <img src={authorAvatar} alt={authorDisplayName} />
+                  <UQImage src={authorAvatar} alt={authorDisplayName} />
                 ) : (
                   <span>{(authorDisplayName || "U")[0].toUpperCase()}</span>
                 )}
@@ -482,14 +683,24 @@ export default function SocialFeed() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [places, setPlaces] = useState<Place[]>([]);
+  const [placesLoading, setPlacesLoading] = useState(true);
+  const [placesHasMore, setPlacesHasMore] = useState(true);
+  const [placesLoadingMore, setPlacesLoadingMore] = useState(false);
+  const [placesError, setPlacesError] = useState<string | null>(null);
+  const [placesCursor, setPlacesCursor] = useState<PlacesPageCursor | null>(null);
+  const placesAdditionalUnsubs = useRef<(() => void)[]>([]);
   const [livePosts, setLivePosts] = useState<Post[]>([]);
   const [olderPosts, setOlderPosts] = useState<Post[]>([]);
   const [loadingFeed, setLoadingFeed] = useState(true);
   const postsCursor = useRef<QueryDocumentSnapshot | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [feedRefreshKey, setFeedRefreshKey] = useState(0);
+  const refreshPromiseRef = useRef<(() => void) | null>(null);
 
   const [stories, setStories] = useState<Story[]>([]);
   const [following, setFollowing] = useState<Follow[]>([]);
+  const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
+  const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
   const [feedMode, setFeedMode] = useState<FeedMode>("all");
   const [postFlowOpen, setPostFlowOpen] = useState(false);
   const [postFlowStep, setPostFlowStep] = useState(1);
@@ -540,6 +751,7 @@ export default function SocialFeed() {
   const storyRaf = useRef<number | null>(null);
   const storyStart = useRef<number>(0);
   const storySwipeStart = useRef<{ y: number; time: number } | null>(null);
+  const toast = useToast();
   const storyFileInputRef = useRef<HTMLInputElement | null>(null);
   const postFileInputRef = useRef<HTMLInputElement | null>(null);
   const currentProfile = useLiveUserProfile(user?.uid ?? null);
@@ -557,6 +769,20 @@ export default function SocialFeed() {
     },
     [requireAuth, user]
   );
+
+  const requireAuthForSave = useCallback(() => {
+    requireAuth({
+      mode: "login",
+      reason: "Connecte-toi pour sauvegarder un post",
+    });
+  }, [requireAuth]);
+
+  const requireAuthForLike = useCallback(() => {
+    requireAuth({
+      mode: "login",
+      reason: "Connecte-toi pour liker un post",
+    });
+  }, [requireAuth]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -576,17 +802,174 @@ export default function SocialFeed() {
   }, [user]);
 
   useEffect(() => {
-    const unsub = listenPlaces(setPlaces, { isPro: isProUser });
-    return () => unsub();
-  }, [isProUser]);
+    if (!user) {
+      setSavedPostIds(new Set());
+      return;
+    }
+    const unsubscribe = listenSavedPostIds(user.uid, (ids) => {
+      setSavedPostIds(new Set(ids));
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   useEffect(() => {
+    if (!user) {
+      setLikedPostIds(new Set());
+      return;
+    }
+    const unsubscribe = listenLikedPostIds(user.uid, (ids) => {
+      setLikedPostIds(new Set(ids));
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleToggleLike = useCallback(
+    async (postId: string, next: boolean) => {
+      if (!user) {
+        requireAuthForLike();
+        return;
+      }
+      setLikedPostIds((prev) => {
+        const copy = new Set(prev);
+        if (next) {
+          copy.add(postId);
+        } else {
+          copy.delete(postId);
+        }
+        return copy;
+      });
+
+      try {
+        if (next) {
+          await likePostForUser(user.uid, postId);
+        } else {
+          await unlikePostForUser(user.uid, postId);
+        }
+      } catch (error) {
+        console.error("[SocialFeed] like toggle failed", error);
+        setLikedPostIds((prev) => {
+          const copy = new Set(prev);
+          if (next) {
+            copy.delete(postId);
+          } else {
+            copy.add(postId);
+          }
+          return copy;
+        });
+        toast.error("Impossible de mettre à jour ton like pour l’instant.");
+      }
+    },
+    [requireAuthForLike, toast, user]
+  );
+
+  useEffect(() => {
+    placesAdditionalUnsubs.current.forEach((fn) => fn());
+    placesAdditionalUnsubs.current = [];
+    setPlaces([]);
+    setPlacesCursor(null);
+    setPlacesHasMore(true);
+    setPlacesError(null);
+    setPlacesLoading(true);
+    setPlacesLoadingMore(false);
+
+    const unsub = listenPlacesPage(
+      { pageSize: PLACES_PAGE_SIZE, isPro: isProUser },
+      ({ places: nextPlaces, lastDoc }) => {
+        setPlaces(nextPlaces);
+        setPlacesCursor(lastDoc);
+        setPlacesHasMore(!!lastDoc);
+        setPlacesLoading(false);
+      },
+      (error) => {
+        console.error("[SocialFeed] listenPlacesPage failed", error);
+        setPlacesError("Impossible de charger les spots pour l’instant.");
+        setPlacesLoading(false);
+      }
+    );
+
+    return () => {
+      unsub();
+      placesAdditionalUnsubs.current.forEach((fn) => fn());
+      placesAdditionalUnsubs.current = [];
+    };
+  }, [isProUser]);
+
+  const loadMorePlaces = useCallback(() => {
+    if (
+      placesLoading ||
+      placesLoadingMore ||
+      !placesHasMore ||
+      !placesCursor
+    ) {
+      return;
+    }
+    setPlacesLoadingMore(true);
+    const unsub = listenPlacesPage(
+      {
+        pageSize: PLACES_PAGE_SIZE,
+        cursor: placesCursor,
+        isPro: isProUser,
+      },
+      ({ places: nextPlaces, lastDoc }) => {
+        setPlaces((prev) => [...prev, ...nextPlaces]);
+        setPlacesCursor(lastDoc);
+        setPlacesHasMore(!!lastDoc);
+        setPlacesLoadingMore(false);
+        unsub();
+      },
+      (error) => {
+        console.error("[SocialFeed] loadMorePlaces failed", error);
+        setPlacesError("Impossible de charger plus de spots pour l’instant.");
+        setPlacesLoadingMore(false);
+        unsub();
+      }
+    );
+    placesAdditionalUnsubs.current.push(unsub);
+  }, [
+    isProUser,
+    placesCursor,
+    placesHasMore,
+    placesLoading,
+    placesLoadingMore,
+  ]);
+
+  useEffect(() => {
+    setLivePosts([]);
+    setOlderPosts([]);
+    postsCursor.current = null;
+    setLoadingMore(false);
+    setLoadingFeed(true);
     const unsub = listenPosts(15, (items, cursor) => {
       setLivePosts(items);
       postsCursor.current = cursor;
       setLoadingFeed(false);
+      if (refreshPromiseRef.current) {
+        refreshPromiseRef.current();
+        refreshPromiseRef.current = null;
+      }
     });
-    return () => unsub();
+    return () => {
+      unsub();
+      if (refreshPromiseRef.current) {
+        refreshPromiseRef.current();
+        refreshPromiseRef.current = null;
+      }
+    };
+  }, [feedRefreshKey]);
+
+  const refreshFeed = useCallback(() => {
+    if (refreshPromiseRef.current) {
+      refreshPromiseRef.current();
+    }
+    setLivePosts([]);
+    setOlderPosts([]);
+    postsCursor.current = null;
+    setLoadingMore(false);
+    setLoadingFeed(true);
+    return new Promise<void>((resolve) => {
+      refreshPromiseRef.current = resolve;
+      setFeedRefreshKey((prev) => prev + 1);
+    });
   }, []);
 
   useEffect(() => {
@@ -781,6 +1164,13 @@ export default function SocialFeed() {
     return feedPosts;
   }, [feedPosts, feedMode, followingIds, userUid]);
 
+  // Infinite scroll optimisé : charge 20 posts initiaux, puis 10 par 10
+  const {
+    visibleItems: paginatedPosts,
+    hasMore,
+    sentinelRef,
+  } = useInfiniteScroll(visiblePosts, 20, 10);
+
   const commentAuthorIds = useMemo(() => {
     const ids = new Set<string>();
     Object.values(commentsMap).forEach((items) =>
@@ -804,6 +1194,16 @@ export default function SocialFeed() {
     feedMode === "mine"
       ? "Partage ton premier post pour faire vibrer la communauté."
       : "Sois la première à ouvrir le bal.";
+
+  const {
+    attachSurface: attachFeedSurface,
+    pullDistance: feedPullDistance,
+    status: feedPullStatus,
+  } = usePullToRefresh({
+    onRefresh: refreshFeed,
+    threshold: 70,
+    minSpinnerTime: 800,
+  });
 
   const handleCreatePost = useCallback(
     async (e?: React.FormEvent) => {
@@ -991,15 +1391,39 @@ export default function SocialFeed() {
     await toggleStoryReaction(story, user.uid, emoji as any);
   }
 
-  async function handleSharePost(post: Post) {
-    const url = `${window.location.origin}/feed?post=${post.id}`;
-    await shareLink(url, "UrbexQueens — Post", post.caption || "Post urbex");
-  }
+  const handleSharePost = useCallback(
+    async (post: Post) => {
+      const url = `${window.location.origin}/feed?post=${post.id}`;
+      const result = await shareLink(
+        url,
+        "UrbexQueens — Post",
+        post.caption || "Post urbex"
+      );
+      if (result.shared) {
+        toast.info("Lien partagé");
+      } else if (result.copied) {
+        toast.success("Lien copié 📎");
+      }
+    },
+    [toast]
+  );
 
-  async function handleShareStory(story: Story) {
-    const url = `${window.location.origin}/story/${story.id || "urbex"}`;
-    await shareLink(url, "Story UrbexQueens", story.text || "Vibe urbex");
-  }
+  const handleShareStory = useCallback(
+    async (story: Story) => {
+      const url = `${window.location.origin}/story/${story.id || "urbex"}`;
+      const result = await shareLink(
+        url,
+        "Story UrbexQueens",
+        story.text || "Vibe urbex"
+      );
+      if (result.shared) {
+        toast.info("Lien partagé");
+      } else if (result.copied) {
+        toast.success("Lien copié 📎");
+      }
+    },
+    [toast]
+  );
 
   function goToProfileHandle(username: string, uid: string) {
     const handle = username.trim();
@@ -1184,7 +1608,8 @@ export default function SocialFeed() {
   }
 
   return (
-    <div className="feed-shell">
+    <div className="feed-shell" ref={attachFeedSurface}>
+      <PullToRefreshIndicator pullDistance={feedPullDistance} status={feedPullStatus} />
       <div className="social-feed-inner">
         <header className="social-feed-header">
           <div className="social-feed-title-row">
@@ -1224,7 +1649,7 @@ export default function SocialFeed() {
                 <div className="ig-story-ring your">
                   <div className="ig-story-avatar">
                     {user?.photoURL ? (
-                      <img src={user.photoURL} alt="Ta story" />
+                      <UQImage src={user.photoURL} alt="Ta story" />
                     ) : (
                       <span>{(user?.displayName || "U")[0]}</span>
                     )}
@@ -1241,11 +1666,18 @@ export default function SocialFeed() {
                   onClick={() => openStoryViewer(idx)}
                   onDoubleClick={() => handleReactStory(story, "🖤")}
                 >
-                  <div className="ig-story-ring">
-                    <div className="ig-story-avatar">
-                      <img src={story.mediaUrl} alt="" loading="lazy" />
-                    </div>
+                <div className="ig-story-ring">
+                  <div className="ig-story-avatar">
+                    <UQImage
+                      src={story.mediaUrl}
+                      alt={
+                        story.authorName
+                          ? `${story.authorName} • story`
+                          : "Story preview"
+                      }
+                    />
                   </div>
+                </div>
                   <div className="ig-story-name">
                     {(story.authorName || story.userId || "user").slice(0, 10)}
                   </div>
@@ -1306,7 +1738,14 @@ export default function SocialFeed() {
                 tabIndex={0}
               >
                 <div className="ig-avatar small">
-                  {user?.photoURL ? <img src={user.photoURL} alt="" /> : <span>🖤</span>}
+                  {user?.photoURL ? (
+                    <UQImage
+                      src={user.photoURL}
+                      alt={`${user?.displayName || "Utilisateur"} • avatar`}
+                    />
+                  ) : (
+                    <span>🖤</span>
+                  )}
                 </div>
                 <div className="ig-quick-placeholder">Partage une exploration...</div>
                 <div className="ig-quick-icon">➕</div>
@@ -1318,20 +1757,45 @@ export default function SocialFeed() {
         {loadingFeed ? (
           <div className="feed-skeleton-list">
             {Array.from({ length: 3 }).map((_, idx) => (
-              <div key={idx} className="feed-skeleton-card uq-fade-card">
-                <div className="uq-skeleton uq-skeleton-line" style={{ width: "40%" }} />
-                <div className="uq-skeleton uq-skeleton-line" style={{ width: "80%" }} />
-                <div className="uq-skeleton uq-skeleton-line" style={{ width: "70%" }} />
-                <div className="uq-skeleton" style={{ height: 160, borderRadius: 12 }} />
-              </div>
+              <FeedPostCardSkeleton key={`feed-skel-${idx}`} />
             ))}
           </div>
         ) : (
           <div className="feed-post-grid">
-            {visiblePosts.map((post) => (
-              <FeedPostTile key={post.id} post={post} onOpen={openPostModal} />
+            {paginatedPosts.map((post) => (
+              <MemoizedFeedPostTile
+                key={post.id}
+                post={post}
+                onOpen={openPostModal}
+                isSaved={savedPostIds.has(post.id)}
+                isLiked={likedPostIds.has(post.id)}
+                onToggleLike={(next) => handleToggleLike(post.id, next)}
+                onRequireAuthForSave={requireAuthForSave}
+                onRequireAuthForLike={isGuest ? requireAuthForLike : undefined}
+                onReact={(emoji) => handleReactPost(post.id, emoji)}
+                currentUserId={userUid}
+                isGuest={isGuest}
+              />
             ))}
-            {visiblePosts.length === 0 && (
+            {/* Sentinel pour infinite scroll */}
+            {hasMore && (
+              <div 
+                ref={sentinelRef} 
+                style={{ 
+                  gridColumn: '1 / -1',
+                  height: '20px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: '20px',
+                  color: 'rgba(255,255,255,0.5)',
+                  fontSize: '12px'
+                }}
+              >
+                Chargement...
+              </div>
+            )}
+            {paginatedPosts.length === 0 && (
               <div className="feed-empty">
                 <span className="feed-empty-icon">👑</span>
                 <div className="feed-empty-texts">
@@ -1346,7 +1810,14 @@ export default function SocialFeed() {
         {postsCursor.current && (
           <div className="feed-loadmore" ref={loadMoreRef}>
             <button type="button" onClick={handleLoadMore} disabled={loadingMore}>
-              {loadingMore ? "Chargement..." : "Charger plus de posts"}
+              {loadingMore ? (
+                <Skeleton
+                  className="feed-loadmore-skeleton__pill"
+                  rounded
+                />
+              ) : (
+                "Charger plus de posts"
+              )}
             </button>
           </div>
         )}
@@ -1482,7 +1953,11 @@ export default function SocialFeed() {
                           playsInline
                         />
                       ) : (
-                        <img src={postPreviewUrl} alt="Prévisualisation" loading="lazy" />
+                        <UQImage
+                          src={postPreviewUrl}
+                          alt="Prévisualisation"
+                          className="flow-preview-media"
+                        />
                       )
                     ) : (
                       <div className="flow-preview-empty">Aucun média sélectionné</div>
@@ -1558,7 +2033,11 @@ export default function SocialFeed() {
                       activePostIsVideo ? (
                         <video src={postPreviewUrl} muted loop playsInline />
                       ) : (
-                        <img src={postPreviewUrl} alt="Prévisualisation" loading="lazy" />
+                        <UQImage
+                          src={postPreviewUrl}
+                          alt="Prévisualisation"
+                          className="flow-preview-media"
+                        />
                       )
                     ) : (
                       <div className="flow-preview-empty">Prévisualisation</div>
@@ -1601,6 +2080,37 @@ export default function SocialFeed() {
                         ))}
                       </select>
                     </div>
+                    <div className="feed-place-actions">
+                      <button
+                        type="button"
+                        onClick={loadMorePlaces}
+                        disabled={
+                          placesLoading ||
+                          placesLoadingMore ||
+                          !placesHasMore
+                        }
+                      >
+                        {placesLoadingMore ? (
+                          <Skeleton
+                            className="feed-loadmore-skeleton__pill"
+                            rounded
+                          />
+                        ) : placesHasMore ? (
+                          "Charger plus de spots"
+                        ) : (
+                          "Tous les spots chargés"
+                        )}
+                      </button>
+                      {placesLoading && (
+                        <Skeleton className="profile-hint-skeleton" shimmer />
+                      )}
+                      {!placesLoading && !placesHasMore && (
+                        <span>Tous les spots sont chargés.</span>
+                      )}
+                    </div>
+                    {placesError && (
+                      <div className="feed-error">{placesError}</div>
+                    )}
                     <div className="ig-filters">
                       {FILTERS.map((f) => (
                         <button
@@ -1628,7 +2138,11 @@ export default function SocialFeed() {
                       activePostIsVideo ? (
                         <video src={postPreviewUrl} muted loop playsInline />
                       ) : (
-                        <img src={postPreviewUrl} alt="Final preview" loading="lazy" />
+                        <UQImage
+                          src={postPreviewUrl}
+                          alt="Final preview"
+                          className="flow-preview-media"
+                        />
                       )
                     ) : (
                       <div className="flow-preview-empty">Prévisualisation finale</div>
@@ -1760,7 +2274,11 @@ export default function SocialFeed() {
                       storyFile?.type.startsWith("video/") ? (
                         <video src={storyPreviewUrl} muted loop playsInline />
                       ) : (
-                        <img src={storyPreviewUrl} alt="Story preview" loading="lazy" />
+                        <UQImage
+                          src={storyPreviewUrl}
+                          alt="Story preview"
+                          className="flow-preview-media"
+                        />
                       )
                     ) : (
                       <div className="flow-preview-empty">Sélectionne un visuel</div>
@@ -1836,7 +2354,11 @@ export default function SocialFeed() {
                       storyFile?.type.startsWith("video/") ? (
                         <video src={storyPreviewUrl} muted loop playsInline />
                       ) : (
-                        <img src={storyPreviewUrl} alt="Story preview" loading="lazy" />
+                        <UQImage
+                          src={storyPreviewUrl}
+                          alt="Story preview"
+                          className="flow-preview-media"
+                        />
                       )
                     ) : (
                       <div className="flow-preview-empty">Prévisualisation story</div>
@@ -1869,7 +2391,11 @@ export default function SocialFeed() {
                       storyFile?.type.startsWith("video/") ? (
                         <video src={storyPreviewUrl} muted loop playsInline />
                       ) : (
-                        <img src={storyPreviewUrl} alt="Story preview" loading="lazy" />
+                        <UQImage
+                          src={storyPreviewUrl}
+                          alt="Story preview"
+                          className="flow-preview-media"
+                        />
                       )
                     ) : (
                       <div className="flow-preview-empty">Rendu final</div>
@@ -1969,9 +2495,9 @@ export default function SocialFeed() {
                     loop
                   />
                 ) : (
-                  <img
+                  <UQImage
                     src={activeStory.mediaUrl}
-                    alt=""
+                    alt={`${activeStory.authorName || "Story"} • story`}
                     className="story-viewer-img"
                   />
                 )}

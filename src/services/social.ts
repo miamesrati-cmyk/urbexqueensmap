@@ -7,7 +7,7 @@ import {
   getDocs,
   increment,
   limit,
-  onSnapshot,
+  
   orderBy,
   query,
   runTransaction,
@@ -18,6 +18,7 @@ import {
   where,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
+import { onSnapshot } from "../lib/firestoreHelpers";
 import { v4 as uuid } from "uuid";
 import { db } from "../lib/firebase";
 import { ensureWritesAllowed } from "../lib/securityGuard";

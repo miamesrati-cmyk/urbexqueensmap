@@ -46,13 +46,13 @@ export default function DMPage({ partnerId }: Props) {
   }, [user]);
 
   useEffect(() => {
-    if (!activeId) return;
+    if (!activeId || !user) return;
     const unsub = listenMessages(activeId, (m) => {
       setMessages(m);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     });
     return () => unsub && unsub();
-  }, [activeId]);
+  }, [activeId, user]);
 
   useEffect(() => {
     if (!user || !partnerId) return;

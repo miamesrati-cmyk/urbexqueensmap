@@ -61,6 +61,65 @@ export function requireAppCheck(
   }
 }
 
+function getRequestIp(req: functions.https.Request) {
+  return (
+    req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.socket.remoteAddress ??
+    "unknown"
+  );
+}
+
+function buildAppCheckMetadata(
+  req: functions.https.Request,
+  action: string
+): Record<string, unknown> {
+  return {
+    action,
+    method: req.method,
+    path: req.url ?? "unknown",
+    ip: getRequestIp(req),
+  };
+}
+
+export async function requireAppCheckRequest(
+  req: functions.https.Request,
+  action: string
+) {
+  const metadata = buildAppCheckMetadata(req, action);
+  const token =
+    req.header("X-Firebase-AppCheck") ?? req.header("x-firebase-appcheck");
+
+  if (!token) {
+    void logSecurityEvent({
+      type: "app_check.missing",
+      detail: `App Check token required for ${action}`,
+      severity: "warning",
+      metadata,
+    });
+    functions.logger.warn("App Check validation failed", metadata);
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "App Check token requis."
+    );
+  }
+
+  try {
+    await admin.appCheck().verifyToken(token);
+  } catch (err) {
+    void logSecurityEvent({
+      type: "app_check.invalid",
+      detail: `App Check token invalid for ${action}`,
+      severity: "warning",
+      metadata,
+    });
+    functions.logger.warn("App Check validation failed", { ...metadata, error: err });
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "App Check invalide."
+    );
+  }
+}
+
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 20;
 const rateBuckets: Map<string, number[]> = new Map();

@@ -1,17 +1,18 @@
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
+  getDoc,
   getDocs,
-  onSnapshot,
+  
   query,
   serverTimestamp,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
+import { onSnapshot } from "../lib/firestoreHelpers";
 import { db } from "../lib/firebase";
-import { getDoc, increment } from "firebase/firestore";
 import { ensureWritesAllowed } from "../lib/securityGuard";
 
 export type Follow = {
@@ -28,19 +29,48 @@ export type FollowRequest = {
   createdAt: number;
 };
 
-const FOLLOWS = collection(db, "follows");
+function followersCollection(uid: string) {
+  return collection(db, "users", uid, "followers");
+}
+
+function followingCollection(uid: string) {
+  return collection(db, "users", uid, "following");
+}
+
+function followerDocumentRef(toUid: string, fromUid: string) {
+  return doc(db, "users", toUid, "followers", fromUid);
+}
+
+function followingDocumentRef(fromUid: string, toUid: string) {
+  return doc(db, "users", fromUid, "following", toUid);
+}
+
+function timestampToMillis(value: unknown): number {
+  const maybeTimestamp = value as { toMillis?: () => number } | number | null | undefined;
+  if (
+    typeof maybeTimestamp === "object" &&
+    maybeTimestamp !== null &&
+    typeof maybeTimestamp.toMillis === "function"
+  ) {
+    return maybeTimestamp.toMillis();
+  }
+  if (typeof maybeTimestamp === "number") {
+    return maybeTimestamp;
+  }
+  return Date.now();
+}
 
 export function listenFollowers(uid: string, cb: (f: Follow[]) => void) {
-  const q = query(FOLLOWS, where("toUid", "==", uid));
-  return onSnapshot(q, (snap) => {
+  const col = followersCollection(uid);
+  return onSnapshot(col, (snap) => {
     const out: Follow[] = [];
     snap.forEach((d) => {
-      const x: any = d.data();
+      const data: any = d.data();
       out.push({
         id: d.id,
-        fromUid: x.fromUid,
-        toUid: x.toUid,
-        createdAt: x.createdAt?.toMillis?.() ?? x.createdAt ?? Date.now(),
+        fromUid: d.id,
+        toUid: uid,
+        createdAt: timestampToMillis(data.createdAt),
       });
     });
     cb(out);
@@ -48,16 +78,16 @@ export function listenFollowers(uid: string, cb: (f: Follow[]) => void) {
 }
 
 export function listenFollowing(uid: string, cb: (f: Follow[]) => void) {
-  const q = query(FOLLOWS, where("fromUid", "==", uid));
-  return onSnapshot(q, (snap) => {
+  const col = followingCollection(uid);
+  return onSnapshot(col, (snap) => {
     const out: Follow[] = [];
     snap.forEach((d) => {
-      const x: any = d.data();
+      const data: any = d.data();
       out.push({
         id: d.id,
-        fromUid: x.fromUid,
-        toUid: x.toUid,
-        createdAt: x.createdAt?.toMillis?.() ?? x.createdAt ?? Date.now(),
+        fromUid: uid,
+        toUid: d.id,
+        createdAt: timestampToMillis(data.createdAt),
       });
     });
     cb(out);
@@ -66,47 +96,35 @@ export function listenFollowing(uid: string, cb: (f: Follow[]) => void) {
 
 export async function followUser(fromUid: string, toUid: string) {
   ensureWritesAllowed();
-  const existing = await getDocs(
-    query(FOLLOWS, where("fromUid", "==", fromUid), where("toUid", "==", toUid))
-  );
-  if (!existing.empty) return existing.docs[0].id;
-
-  const ref = await addDoc(FOLLOWS, {
-    fromUid,
-    toUid,
-    createdAt: serverTimestamp(),
-  });
-
-  // best-effort counters
-  await Promise.allSettled([
-    updateDoc(doc(db, "users", fromUid), {
-      followingCount: increment(1),
-    }),
-    updateDoc(doc(db, "users", toUid), {
-      followersCount: increment(1),
-    }),
+  if (fromUid === toUid) return;
+  const followerRef = followerDocumentRef(toUid, fromUid);
+  const followingRef = followingDocumentRef(fromUid, toUid);
+  const [followerSnap, followingSnap] = await Promise.all([
+    getDoc(followerRef),
+    getDoc(followingRef),
   ]);
-
-  return ref.id;
+  if (followerSnap.exists() && followingSnap.exists()) {
+    return;
+  }
+  const batch = writeBatch(db);
+  if (!followerSnap.exists()) {
+    batch.set(followerRef, { createdAt: serverTimestamp() });
+  }
+  if (!followingSnap.exists()) {
+    batch.set(followingRef, { createdAt: serverTimestamp() });
+  }
+  await batch.commit();
 }
 
 export async function unfollowUser(fromUid: string, toUid: string) {
   ensureWritesAllowed();
-  const existing = await getDocs(
-    query(FOLLOWS, where("fromUid", "==", fromUid), where("toUid", "==", toUid))
-  );
-  const batchDeletes: Promise<any>[] = [];
-  existing.forEach((d) => batchDeletes.push(deleteDoc(d.ref)));
-  await Promise.all(batchDeletes);
-
-  await Promise.allSettled([
-    updateDoc(doc(db, "users", fromUid), {
-      followingCount: increment(-1),
-    }),
-    updateDoc(doc(db, "users", toUid), {
-      followersCount: increment(-1),
-    }),
-  ]);
+  if (fromUid === toUid) return;
+  const followerRef = followerDocumentRef(toUid, fromUid);
+  const followingRef = followingDocumentRef(fromUid, toUid);
+  const batch = writeBatch(db);
+  batch.delete(followerRef);
+  batch.delete(followingRef);
+  await batch.commit();
 }
 
 export function listenFollowRequests(
@@ -132,7 +150,6 @@ export function listenFollowRequests(
 export async function requestFollow(profileUid: string, fromUid: string) {
   ensureWritesAllowed();
   const col = collection(db, "users", profileUid, "followRequests");
-  // prevent spam duplicates
   const existing = await getDocs(
     query(col, where("fromUid", "==", fromUid), where("status", "==", "pending"))
   );

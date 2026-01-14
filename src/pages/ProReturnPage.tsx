@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import { useCurrentUserRole } from "../hooks/useCurrentUserRole";
+// import { trackCheckoutSuccess } from "../utils/conversionTracking"; // TODO: Uncomment when ready
 import "./ProReturnPage.css";
 
 const POLL_INTERVAL_MS = 500;
@@ -157,6 +158,17 @@ export default function ProReturnPage({ status, sessionId }: Props) {
         const isPro = snapshot.data()?.isPro ?? false;
         if (isPro) {
           if (cancelled) return;
+          
+          // TODO: CONVERSION TRACKING - Uncomment when ready for production metrics
+          // const params = new URLSearchParams(window.location.search);
+          // const src = params.get("src") || "direct";
+          // trackCheckoutSuccess(
+          //   "pro_monthly", // TODO: Get actual plan from snapshot.data()?.proPlan
+          //   9.99,          // TODO: Get actual value
+          //   src,
+          //   user?.uid || null
+          // );
+          
           setPhase("done");
           setMessage("Ton compte PRO est synchronisé. Redirection…");
           window.setTimeout(() => redirectToMap(), 1200);

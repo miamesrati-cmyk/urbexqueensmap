@@ -4,13 +4,14 @@ import {
   doc,
   getDocs,
   limit,
-  onSnapshot,
+  
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
   where,
 } from "firebase/firestore";
+import { onSnapshot } from "../lib/firestoreHelpers";
 import { db } from "../lib/firebase";
 import { ensureWritesAllowed } from "../lib/securityGuard";
 
@@ -39,17 +40,23 @@ function sortPair(a: string, b: string) {
 
 export async function findOrCreateConversation(a: string, b: string) {
   ensureWritesAllowed();
-  const pairKey = sortPair(a, b);
-  const existing = await getDocs(
-    query(CONV, where("pairKey", "==", pairKey), limit(1))
-  );
-  if (!existing.empty) return existing.docs[0].id;
-  const ref = await addDoc(CONV, {
-    participantIds: [a, b],
-    pairKey,
-    lastMessageAt: serverTimestamp(),
-  });
-  return ref.id;
+  try {
+    const pairKey = sortPair(a, b);
+    const existing = await getDocs(
+      query(CONV, where("pairKey", "==", pairKey), limit(1))
+    );
+    if (!existing.empty) return existing.docs[0].id;
+    const ref = await addDoc(CONV, {
+      participantIds: [a, b],
+      pairKey,
+      lastMessageAt: serverTimestamp(),
+      lastWriteTime: serverTimestamp(),
+    });
+    return ref.id;
+  } catch (error) {
+    console.error("[DM] Error in findOrCreateConversation:", error);
+    throw error;
+  }
 }
 
 export function listenConversations(
@@ -110,11 +117,13 @@ export async function sendMessage(input: {
     mediaUrl: input.mediaUrl ?? null,
     createdAt: serverTimestamp(),
     seenBy: [input.fromUid],
+    lastWriteTime: serverTimestamp(),
   });
 
   await updateDoc(doc(db, "conversations", input.conversationId), {
     lastMessageText: input.text,
     lastMessageAt: serverTimestamp(),
     lastMessageSender: input.fromUid,
+    lastWriteTime: serverTimestamp(),
   });
 }

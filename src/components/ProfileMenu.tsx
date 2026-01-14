@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { auth } from "../lib/firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { listenMissions, type Mission } from "../services/missions";
@@ -7,6 +8,10 @@ import {
   listenUserGamification,
   type UserGamification,
 } from "../services/gamification";
+import {
+  listenUserPlaces,
+  type UserPlacesMap,
+} from "../services/userPlaces";
 import { useCurrentUserRole } from "../hooks/useCurrentUserRole";
 import { dispatchSpotListView } from "../lib/userSpotStats";
 
@@ -16,6 +21,17 @@ export default function ProfileMenu() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [isProUser, setIsProUser] = useState(false);
   const [gamification, setGamification] = useState<UserGamification | null>(null);
+  const [userPlaces, setUserPlaces] = useState<UserPlacesMap>({});
+  
+  // Calculer les compteurs de spots
+  const spotsDone = useMemo(() => {
+    return Object.values(userPlaces).filter((place) => place.done).length;
+  }, [userPlaces]);
+
+  const spotsSaved = useMemo(() => {
+    return Object.values(userPlaces).filter((place) => place.saved).length;
+  }, [userPlaces]);
+
   const profileActiveMission = useMemo(() => {
     if (missions.length === 0) return null;
     const now = Date.now();
@@ -28,6 +44,8 @@ export default function ProfileMenu() {
       );
     return available[0] ?? missions[0];
   }, [missions]);
+
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   // Suivi utilisateur
   const { isAdmin } = useCurrentUserRole();
@@ -42,16 +60,20 @@ export default function ProfileMenu() {
     let authUnsub: (() => void) | null = null;
     let profileUnsub: (() => void) | null = null;
     let gamifUnsub: (() => void) | null = null;
+    let placesUnsub: (() => void) | null = null;
 
     authUnsub = onAuthStateChanged(auth, (u) => {
       setUser(u || null);
       if (!u) {
         setIsProUser(false);
         setGamification(null);
+        setUserPlaces({});
         profileUnsub?.();
         profileUnsub = null;
         gamifUnsub?.();
         gamifUnsub = null;
+        placesUnsub?.();
+        placesUnsub = null;
         return;
       }
       profileUnsub?.();
@@ -62,12 +84,15 @@ export default function ProfileMenu() {
       gamifUnsub = listenUserGamification(u.uid, (data) => {
         setGamification(data);
       });
+      placesUnsub?.();
+      placesUnsub = listenUserPlaces(u.uid, setUserPlaces);
     });
 
     return () => {
       authUnsub?.();
       profileUnsub?.();
       gamifUnsub?.();
+      placesUnsub?.();
     };
   }, []);
 
@@ -76,7 +101,31 @@ export default function ProfileMenu() {
     return () => unsub();
   }, []);
 
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !menuOpen) return;
+      event.preventDefault();
+      triggerRef.current?.focus();
+      setMenuOpen(false);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [menuOpen]);
+
   if (!user) return null;
+
+  const handleTriggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === "Escape" && menuOpen) {
+      event.preventDefault();
+      triggerRef.current?.focus();
+      setMenuOpen(false);
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setMenuOpen((open) => !open);
+    }
+  };
 
   const displayName =
     user.displayName || (user.email ? user.email.split("@")[0] : "explorateur");
@@ -88,9 +137,15 @@ export default function ProfileMenu() {
       <button
         type="button"
         className="urbex-profile-trigger"
+        ref={triggerRef}
+        aria-haspopup="true"
+        aria-expanded={menuOpen}
+        aria-controls="urbex-profile-panel"
+        title="Ouvrir le menu profil"
         onClick={() => {
           setMenuOpen((o) => !o);
         }}
+        onKeyDown={handleTriggerKeyDown}
       >
         <div className="urbex-profile-avatar">{firstLetter}</div>
 
@@ -102,7 +157,7 @@ export default function ProfileMenu() {
 
       {/* Panneau déroulant */}
       {menuOpen && (
-        <div className="urbex-profile-panel">
+        <div id="urbex-profile-panel" className="urbex-profile-panel">
           <button
             type="button"
             className="urbex-profile-close"
@@ -110,6 +165,7 @@ export default function ProfileMenu() {
               setMenuOpen(false);
             }}
             aria-label="Fermer le menu"
+            title="Fermer le menu"
           >
             ✕
           </button>
@@ -136,6 +192,24 @@ export default function ProfileMenu() {
                   <div className="menu-gamif-xp">XP : {gamification.xp}</div>
                 </div>
               )}
+
+              {/* Compteurs de spots */}
+              <div className="menu-spots-stats">
+                <div className="menu-spots-stat-item">
+                  <div className="menu-spots-stat-icon">✅</div>
+                  <div className="menu-spots-stat-content">
+                    <div className="menu-spots-stat-label">Spots faits</div>
+                    <div className="menu-spots-stat-value">{spotsDone}</div>
+                  </div>
+                </div>
+                <div className="menu-spots-stat-item">
+                  <div className="menu-spots-stat-icon">💗</div>
+                  <div className="menu-spots-stat-content">
+                    <div className="menu-spots-stat-label">Sauvegardés</div>
+                    <div className="menu-spots-stat-value">{spotsSaved}</div>
+                  </div>
+                </div>
+              </div>
 
               {missions.length > 0 && (
                 <div className="profile-missions">

@@ -9,6 +9,7 @@ import ProUpsellModal from "../components/ProUpsellModal";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { useAuthUI } from "../contexts/useAuthUI";
 import { sanitizeHtml } from "../lib/sanitizeHtml";
+import Skeleton from "../components/Skeleton";
 import "./SpotPage.css";
 
 type Props = {
@@ -120,10 +121,21 @@ export default function SpotPage({ spotId, onBack }: Props) {
     return (
       <div className="spot-page">
         <div className="spot-page-loading">
-          <div className="uq-skeleton uq-skeleton-line" style={{ width: "80%", height: 16 }} />
-          <div className="uq-skeleton uq-skeleton-line" style={{ width: "60%", height: 12 }} />
-          <div className="uq-skeleton uq-skeleton-line" style={{ width: "70%", height: 12 }} />
-          <p className="spot-page-loading-text">Chargement du spot...</p>
+          <Skeleton className="spot-page-skel-hero" rounded />
+          <div className="spot-page-skel-meta">
+            <Skeleton className="spot-page-skel-title" />
+            <Skeleton className="spot-page-skel-subtitle" />
+            <div className="spot-page-skel-pills">
+              <Skeleton className="spot-page-skel-pill" rounded />
+              <Skeleton className="spot-page-skel-pill" rounded />
+            </div>
+          </div>
+          <div className="spot-page-skel-text">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <Skeleton key={idx} className="spot-page-skel-line" />
+            ))}
+          </div>
+          <Skeleton className="spot-page-skel-gallery" rounded />
         </div>
       </div>
     );

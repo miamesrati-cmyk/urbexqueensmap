@@ -1,0 +1,516 @@
+/* ═══════════════════════════════════════════════════════════
+   ENHANCED PREMIUM HEADER
+   Amélioration visuelle majeure avec effets subtils et élégants
+   ═══════════════════════════════════════════════════════════ */
+
+/* ──────────────────────────────────────────────────────────
+   1. TOPBAR CONTAINER - Glass morphism + Gradient border
+   ────────────────────────────────────────────────────────── */
+.topbar {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(25, 12, 41, 0.92) 0%,
+    rgba(18, 8, 30, 0.95) 100%
+  ) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(186, 104, 200, 0.2) !important;
+  box-shadow: 
+    0 1px 0 rgba(186, 104, 200, 0.15) inset !important;
+  overflow: visible !important;
+  contain: none !important;
+}
+
+/* Gradient glow line animé */
+.topbar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(236, 64, 122, 0.6) 15%,
+    rgba(186, 104, 200, 0.8) 50%,
+    rgba(236, 64, 122, 0.6) 85%,
+    transparent 100%
+  );
+  opacity: 0.8;
+  animation: shimmer 3s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.6; transform: translateX(-10%); }
+  50% { opacity: 1; transform: translateX(10%); }
+}
+
+/* Texture grain subtile */
+.topbar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  z-index: 0;
+}
+
+/* Fix: Map full screen alignement parfait */
+.route-map {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
+.route-map .map-shell {
+  position: absolute !important;
+  top: var(--topbar-h) !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: calc(100vh - var(--topbar-h)) !important;
+}
+
+.route-map .map-canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.route-map .content {
+  padding-top: 0 !important;
+  height: 100vh !important;
+}
+
+.route-map .mapbox-container,
+.route-map .mapboxgl-map {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ──────────────────────────────────────────────────────────
+   2. LOGO - Gradient text + Glow + Animation
+   ────────────────────────────────────────────────────────── */
+.topbar-logo {
+  position: relative;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    rgba(186, 104, 200, 0.08) 0%,
+    rgba(156, 39, 176, 0.05) 100%
+  );
+  border: 1px solid rgba(186, 104, 200, 0.15);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.topbar-logo:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(
+    135deg,
+    rgba(186, 104, 200, 0.12) 0%,
+    rgba(156, 39, 176, 0.08) 100%
+  );
+  border-color: rgba(186, 104, 200, 0.3);
+  box-shadow: 
+    0 8px 16px rgba(156, 39, 176, 0.15),
+    0 0 20px rgba(186, 104, 200, 0.2);
+}
+
+.topbar-logo-icon {
+  font-size: 24px;
+  filter: drop-shadow(0 2px 8px rgba(236, 64, 122, 0.4));
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { 
+    filter: drop-shadow(0 2px 8px rgba(236, 64, 122, 0.4));
+  }
+  50% { 
+    filter: drop-shadow(0 4px 12px rgba(236, 64, 122, 0.6));
+  }
+}
+
+.topbar-logo-text {
+  background: linear-gradient(
+    135deg,
+    #f8bbd0 0%,
+    #ba68c8 50%,
+    #9c27b0 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-shadow: 0 2px 12px rgba(186, 104, 200, 0.3);
+  transition: letter-spacing 0.3s ease;
+}
+
+.topbar-logo:hover .topbar-logo-text {
+  letter-spacing: 1.2px;
+}
+
+/* ──────────────────────────────────────────────────────────
+   3. NAVIGATION PILLS - Floating minimalist design
+   ────────────────────────────────────────────────────────── */
+.topbar-nav {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.nav-pill {
+  position: relative;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+  background: transparent;
+  border: none !important;
+  border-radius: 8px;
+  backdrop-filter: none;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  overflow: hidden;
+  outline: none !important;
+  box-shadow: none;
+}
+
+/* Subtle underline on hover */
+.nav-pill::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) scaleX(0);
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(186, 104, 200, 0.5) 50%,
+    transparent 100%
+  );
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-pill:hover::before {
+  transform: translateX(-50%) scaleX(1);
+}
+
+.nav-pill:hover {
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(186, 104, 200, 0.08);
+  transform: translateY(-1px);
+  border: none !important;
+  outline: none !important;
+}
+
+/* Active state - prominent glow, no box */
+.nav-pill.is-active {
+  color: #fff;
+  background: linear-gradient(
+    135deg,
+    rgba(236, 64, 122, 0.15) 0%,
+    rgba(186, 104, 200, 0.15) 100%
+  );
+  font-weight: 600;
+  border: none !important;
+  outline: none !important;
+  box-shadow: 
+    0 0 20px rgba(186, 104, 200, 0.3),
+    0 0 40px rgba(236, 64, 122, 0.2),
+    0 2px 0 rgba(186, 104, 200, 0.5) inset;
+}
+
+.nav-pill.is-active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(236, 64, 122, 0.9) 50%,
+    transparent 100%
+  );
+  box-shadow: 
+    0 0 12px rgba(236, 64, 122, 0.8),
+    0 0 24px rgba(186, 104, 200, 0.4);
+}
+
+/* Disabled state */
+.nav-pill[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ──────────────────────────────────────────────────────────
+   4. TOPBAR RIGHT ICONS - Enhanced glass buttons
+   ────────────────────────────────────────────────────────── */
+.topbar-icon {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.topbar-icon:hover {
+  transform: scale(1.08);
+  background: rgba(186, 104, 200, 0.15);
+  border-color: rgba(186, 104, 200, 0.3);
+  box-shadow: 
+    0 4px 12px rgba(156, 39, 176, 0.25),
+    0 0 16px rgba(186, 104, 200, 0.2);
+}
+
+.topbar-icon:active {
+  transform: scale(0.96);
+}
+
+/* Badge notification */
+.topbar-icon-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #ec407a 0%, #ba68c8 100%);
+  border: 2px solid rgba(25, 12, 41, 0.95);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(236, 64, 122, 0.5);
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(236, 64, 122, 0.5);
+  }
+  50% { 
+    transform: scale(1.1);
+    box-shadow: 0 4px 16px rgba(236, 64, 122, 0.7);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────
+   5. PRO BADGE - Gradient glow effect
+   ────────────────────────────────────────────────────────── */
+.topbar-pro-pill {
+  position: relative;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.topbar-pro-pill--active {
+  color: #fff;
+  background: linear-gradient(
+    135deg,
+    rgba(236, 64, 122, 0.3) 0%,
+    rgba(186, 104, 200, 0.3) 100%
+  );
+  border: 1px solid rgba(186, 104, 200, 0.4);
+  box-shadow: 
+    0 4px 12px rgba(156, 39, 176, 0.3),
+    0 0 20px rgba(186, 104, 200, 0.2);
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 
+      0 4px 12px rgba(156, 39, 176, 0.3),
+      0 0 20px rgba(186, 104, 200, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 6px 16px rgba(156, 39, 176, 0.4),
+      0 0 28px rgba(186, 104, 200, 0.3);
+  }
+}
+
+.topbar-pro-pill:not(.topbar-pro-pill--active) {
+  color: rgba(255, 255, 255, 0.9);
+  background: linear-gradient(135deg, #ec407a 0%, #ba68c8 100%);
+  border: 1px solid transparent;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(236, 64, 122, 0.4);
+}
+
+.topbar-pro-pill:not(.topbar-pro-pill--active):hover {
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 
+    0 6px 16px rgba(236, 64, 122, 0.5),
+    0 0 24px rgba(186, 104, 200, 0.3);
+}
+
+/* ──────────────────────────────────────────────────────────
+   6. USER AVATAR - Ring effect + Pulse
+   ────────────────────────────────────────────────────────── */
+.topbar-user-avatar {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #ec407a 0%, #ba68c8 100%);
+  padding: 2px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.topbar-user-avatar::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ec407a 0%, #ba68c8 100%);
+  opacity: 0;
+  filter: blur(6px);
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+
+.topbar-user-avatar:hover::before {
+  opacity: 0.6;
+  animation: ring-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ring-pulse {
+  0%, 100% { 
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% { 
+    transform: scale(1.15);
+    opacity: 0.8;
+  }
+}
+
+.topbar-user-avatar:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 20px rgba(156, 39, 176, 0.4);
+}
+
+/* ──────────────────────────────────────────────────────────
+   7. RESPONSIVE ADJUSTMENTS
+   ────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .nav-pill {
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+  
+  .topbar-logo {
+    padding: 8px 12px;
+  }
+  
+  .topbar-icon {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar::before {
+    height: 1px;
+  }
+  
+  .nav-pill {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  .topbar-logo-text {
+    font-size: 13px;
+  }
+  
+  .topbar-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────
+   8. ACCESSIBILITY
+   ────────────────────────────────────────────────────────── */
+.nav-pill:focus-visible,
+.topbar-icon:focus-visible,
+.topbar-pro-pill:focus-visible {
+  outline: none;
+}
+
+.nav-pill:focus,
+.nav-pill:focus-visible {
+  outline: none;
+}
+
+/* Hide avatar circle, keep only the text button */
+.topbar-avatar {
+  display: none !important;
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  .topbar::before,
+  .topbar-logo-icon,
+  .topbar-icon-badge,
+  .topbar-pro-pill--active,
+  .topbar-user-avatar::before {
+    animation: none;
+  }
+  
+  .nav-pill,
+  .topbar-icon,
+  .topbar-logo,
+  .topbar-pro-pill,
+  .topbar-user-avatar {
+    transition: none;
+  }
+}

@@ -1,13 +1,19 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent,
   type PointerEvent,
   type RefObject,
 } from "react";
 import { onAuthStateChanged, type User, updateProfile } from "firebase/auth";
 import { auth } from "../lib/firebase";
+import "../styles/profile-gaming.css";
+import "../styles/profile-responsive.css";
+import "../styles/profile-hero-enhanced.css";
 import {
   listenUserProfile,
   type UserProfile,
@@ -19,8 +25,15 @@ import {
 } from "../services/userProfiles";
 import { listenUserProfile as listenBasicProfile } from "../services/users";
 import { listenUserPlaces, type UserPlacesMap } from "../services/userPlaces";
+import {
+  ACHIEVEMENTS,
+  listenUserAchievements,
+  type AchievementTier,
+  type UserAchievementRecord,
+} from "../services/achievements";
 import { buildUserSpotCollections } from "../lib/userSpotStats";
 import { useUserSpotStats } from "../hooks/useUserSpotStats";
+import { useOptimisticAction } from "../hooks/useOptimisticAction";
 import { listenPlaces, type Place } from "../services/places";
 import { uploadProfileImage } from "../services/storage";
 import { listenUserPosts, type Post } from "../services/social";
@@ -42,9 +55,16 @@ import {
   type UserSettings,
 } from "../services/userSettings";
 import { shareLink } from "../utils/share";
+import { useToast } from "../contexts/useToast";
 import { describeStorageError } from "../utils/uploadErrors";
 import ProUnlockPanel from "./ProUnlockPanel";
-import { ProfilePostForm, ProfilePostModal, ProfilePostsGrid } from "./ProfilePosts";
+import { ProfileSkeleton } from "./skeletons/SkeletonVariants";
+import StatCard from "./profile/StatCard";
+import BadgeItem from "./profile/BadgeItem";
+import AchievementCard from "./profile/AchievementCard";
+import { ProfilePostModal, ProfilePostsGrid } from "./ProfilePosts";
+import Skeleton from "./Skeleton";
+import UQImage from "./UQImage";
 import type { ProfileViewSection } from "../lib/profileViews";
 
 type Props = {
@@ -92,6 +112,9 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [userPlaces, setUserPlaces] = useState<UserPlacesMap>({});
+  const [userAchievements, setUserAchievements] = useState<
+    Record<string, UserAchievementRecord>
+  >({});
   const [places, setPlaces] = useState<Place[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [profileSettings, setProfileSettings] = useState<UserSettings | null>(null);
@@ -126,10 +149,28 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
     | null
   >(null);
   const clampCrop = (value: number) => Math.min(140, Math.max(-140, value));
+  const toast = useToast();
 
   const closeCropModal = () => {
     setCropModalOpen(false);
     setDragState(null);
+  };
+
+  const handleAvatarBackdropClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    closeCropModal();
+  };
+
+  const handleAvatarBackdropKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      closeCropModal();
+      event.preventDefault();
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      closeCropModal();
+    }
   };
 
   useEffect(() => {
@@ -184,8 +225,19 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
   };
   const [followers, setFollowers] = useState<Follow[]>([]);
   const [myFollowing, setMyFollowing] = useState<Follow[]>([]);
+  const {
+    state: optimisticFollowers,
+    applyOptimistic: applyOptimisticFollowers,
+    commit: commitFollowerAction,
+  } = useOptimisticAction("profile:followers", followers);
+  const {
+    state: optimisticFollowing,
+    applyOptimistic: applyOptimisticFollowing,
+    commit: commitFollowingAction,
+  } = useOptimisticAction("profile:following", myFollowing);
   const [followRequests, setFollowRequests] = useState<FollowRequest[]>([]);
   const [requestedLocal, setRequestedLocal] = useState(false);
+  const [pendingFollowAction, setPendingFollowAction] = useState<"follow" | "unfollow" | null>(null);
   const [isProViewer, setIsProViewer] = useState(false);
   const [profileIsPro, setProfileIsPro] = useState(false);
   const [profilePosts, setProfilePosts] = useState<Post[]>([]);
@@ -361,7 +413,30 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
       kmExplored,
     ]
   );
+  const achievementTiles = useMemo(() => {
+    const tierOrder: Record<AchievementTier, number> = {
+      GHOST: 0,
+      LEGEND: 1,
+      RARE: 2,
+      COMMON: 3,
+    };
+    return ACHIEVEMENTS.map((definition) => ({
+      ...definition,
+      unlocked: Boolean(userAchievements[definition.id]),
+      unlockedAt: userAchievements[definition.id]?.unlockedAt ?? 0,
+    })).sort((a, b) => {
+      if (a.unlocked !== b.unlocked) return a.unlocked ? -1 : 1;
+      if (tierOrder[a.tier] !== tierOrder[b.tier]) {
+        return tierOrder[a.tier] - tierOrder[b.tier];
+      }
+      return a.title.localeCompare(b.title);
+    });
+  }, [userAchievements]);
   const featuredVisited = useMemo(() => visibleVisited.slice(0, 9), [visibleVisited]);
+  const achievementsUnlockedCount = achievementTiles.filter((tile) => tile.unlocked).length;
+  const PROFILE_PHOTO_INPUT_ID = "profile-photo-url";
+  const PROFILE_BANNER_INPUT_ID = "profile-banner-url";
+  const PROFILE_PRIVACY_TOGGLE_ID = "profile-privacy-toggle";
 
   function renderSpotItem(place: Place) {
     const typeLabel =
@@ -436,6 +511,31 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
       )}`,
     [profileUrl]
   );
+  const handleShareProfile = useCallback(async () => {
+    const result = await shareLink(
+      profileUrl,
+      "Profil UrbexQueens",
+      `Découvre le profil de ${displayName} sur UrbexQueens`
+    );
+    if (result.shared) {
+      toast.info("Lien partagé");
+    } else if (result.copied) {
+      toast.success("Lien copié 📎");
+    }
+  }, [displayName, profileUrl, toast]);
+
+  const handleShareProfileQr = useCallback(async () => {
+    const result = await shareLink(
+      profileUrl,
+      "Profil UrbexQueens",
+      `Scanne ou ouvre le profil de ${displayName}`
+    );
+    if (result.shared) {
+      toast.info("Lien partagé");
+    } else if (result.copied) {
+      toast.success("Lien copié 📎");
+    }
+  }, [displayName, profileUrl, toast]);
 
   const avatarLetter = (displayName || "U")[0]?.toUpperCase() || "U";
 
@@ -444,15 +544,24 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
     [stats, visibleVisited, safeProfile.favoriteSpotTypes]
   );
   const isPrivate = !!safeProfile.isPrivate;
-  const followerCount = safeProfile.followersCount ?? followers.length;
-  const followingCount = safeProfile.followingCount ?? myFollowing.length;
+  const followerCount = safeProfile.followersCount ?? optimisticFollowers.length;
+  const followingCount = safeProfile.followingCount ?? optimisticFollowing.length;
   const isFollowing = useMemo(
-    () => followers.some((f) => f.fromUid === currentUser?.uid),
-    [followers, currentUser?.uid]
+    () => optimisticFollowers.some((f) => f.fromUid === currentUser?.uid),
+    [optimisticFollowers, currentUser?.uid]
   );
   const myRequestStatus = followRequests.find((r) => r.fromUid === currentUser?.uid)?.status;
   const isRequested = requestedLocal || myRequestStatus === "pending";
   const canViewPrivate = !isPrivate || isOwner || isFollowing;
+
+  useEffect(() => {
+    if (!canViewPrivate) {
+      setUserAchievements({});
+      return;
+    }
+    const unsub = listenUserAchievements(uid, setUserAchievements);
+    return () => unsub();
+  }, [uid, canViewPrivate]);
 
   useEffect(() => {
     if (isPrivate && !canViewPrivate) {
@@ -466,42 +575,105 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
       setPostsLoading(false);
     });
     return () => unsub();
-  }, [uid, isPrivate, canViewPrivate]);
+    }, [uid, isPrivate, canViewPrivate]);
+
+  const handleFollow = useCallback(async () => {
+    if (!currentUser || isOwner || pendingFollowAction) return;
+    const currentUid = currentUser.uid;
+    if (isFollowing) {
+      setPendingFollowAction("unfollow");
+      applyOptimisticFollowers((previous) =>
+        previous.filter((entry) => entry.fromUid !== currentUid)
+      );
+      applyOptimisticFollowing((previous) =>
+        previous.filter((entry) => entry.toUid !== uid)
+      );
+      try {
+        const actionPromise = unfollowUser(currentUid, uid);
+        await Promise.all([
+          commitFollowerAction(actionPromise),
+          commitFollowingAction(actionPromise),
+        ]);
+      } catch (error) {
+        console.error("[ProfilePage] unfollow", error);
+        toast.error("Action annulée (sync impossible)");
+      } finally {
+        setPendingFollowAction(null);
+      }
+      return;
+    }
+
+    setPendingFollowAction("follow");
+    if (isPrivate) {
+      try {
+        await requestFollow(uid, currentUid);
+        setRequestedLocal(true);
+      } catch (error) {
+        console.error("[ProfilePage] request follow", error);
+        toast.error("Action annulée (sync impossible)");
+      } finally {
+        setPendingFollowAction(null);
+      }
+      return;
+    }
+
+    const followerEntry: Follow = {
+      id: currentUid,
+      fromUid: currentUid,
+      toUid: uid,
+      createdAt: Date.now(),
+    };
+    const followingEntry: Follow = {
+      id: uid,
+      fromUid: currentUid,
+      toUid: uid,
+      createdAt: Date.now(),
+    };
+    applyOptimisticFollowers((previous) => {
+      if (previous.some((entry) => entry.fromUid === currentUid)) {
+        return previous;
+      }
+      return [...previous, followerEntry];
+    });
+    applyOptimisticFollowing((previous) => {
+      if (previous.some((entry) => entry.toUid === uid)) {
+        return previous;
+      }
+      return [...previous, followingEntry];
+    });
+    try {
+      const actionPromise = followUser(currentUid, uid);
+      await Promise.all([
+        commitFollowerAction(actionPromise),
+        commitFollowingAction(actionPromise),
+      ]);
+    } catch (error) {
+      console.error("[ProfilePage] follow", error);
+      toast.error("Action annulée (sync impossible)");
+    } finally {
+      setPendingFollowAction(null);
+    }
+  }, [
+    currentUser,
+    isOwner,
+    isFollowing,
+    isPrivate,
+    pendingFollowAction,
+    uid,
+    applyOptimisticFollowers,
+    applyOptimisticFollowing,
+    commitFollowerAction,
+    commitFollowingAction,
+    setRequestedLocal,
+    setPendingFollowAction,
+    toast,
+  ]);
 
   if (!profileLoaded) {
     return (
       <div className="profile-page uq-profile-page">
         <div className="uq-profile-left">
-          <div className="uq-profile-header uq-panel uq-fade-card">
-            <div className="uq-profile-header-main">
-              <div className="uq-skeleton uq-skeleton-circle" />
-              <div style={{ flex: 1, display: "grid", gap: 10 }}>
-                <div className="uq-skeleton uq-skeleton-line" style={{ width: "50%" }} />
-                <div className="uq-skeleton uq-skeleton-line" style={{ width: "30%" }} />
-                <div className="uq-skeleton uq-skeleton-line" style={{ width: "60%" }} />
-              </div>
-              <div className="uq-skeleton uq-skeleton-line" style={{ width: 90, height: 32 }} />
-            </div>
-          </div>
-
-          <div className="uq-profile-card uq-fade-card">
-            <div className="uq-skeleton uq-skeleton-line" style={{ width: "40%", height: 14 }} />
-            <div className="uq-skeleton uq-skeleton-line" style={{ width: "90%" }} />
-            <div className="uq-skeleton uq-skeleton-line" style={{ width: "75%" }} />
-          </div>
-
-          <div className="uq-profile-card uq-fade-card">
-            <div className="uq-skeleton uq-skeleton-line" style={{ width: "30%", height: 14 }} />
-            <div className="uq-profile-stats-grid">
-              {Array.from({ length: 4 }).map((_, idx) => (
-                <div key={idx} className="uq-skeleton" style={{ height: 60, borderRadius: 12 }} />
-              ))}
-            </div>
-          </div>
-          <div className="uq-profile-card uq-fade-card">
-            <div className="uq-skeleton uq-skeleton-line" style={{ width: "50%", height: 14 }} />
-            <div className="uq-skeleton" style={{ height: 140, borderRadius: 12 }} />
-          </div>
+          <ProfileSkeleton />
         </div>
       </div>
     );
@@ -605,20 +777,6 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
     }
   }
 
-  async function handleFollow() {
-    if (!currentUser || isOwner) return;
-    if (isFollowing) {
-      await unfollowUser(currentUser.uid, uid);
-      return;
-    }
-    if (isPrivate) {
-      await requestFollow(uid, currentUser.uid);
-      setRequestedLocal(true);
-      return;
-    }
-    await followUser(currentUser.uid, uid);
-  }
-
   function handleMessage() {
     window.dispatchEvent(
       new CustomEvent("urbex-nav", { detail: { path: `/dm/${uid}` } })
@@ -653,7 +811,7 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
             <div className="uq-profile-hero-top">
               <div className="uq-profile-avatar-block">
                 {photoUrl ? (
-                  <img src={photoUrl} alt={displayName} />
+                  <UQImage src={photoUrl} alt={displayName} />
                 ) : (
                   <span className="uq-profile-avatar-initial">{avatarLetter}</span>
                 )}
@@ -692,7 +850,7 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
                   {isPrivate && <span className="profile-private-chip">Compte privé</span>}
                 </div>
 
-                <p className="uq-profile-intro">
+                <p className="uq-profile-bio">
                   {safeProfile.bio ||
                     "Ton identité urbex, tes vibes et tes obsessions : montre qui tu es à la communauté."}
                 </p>
@@ -718,13 +876,7 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
                   <button
                     className="uq-share-btn"
                     type="button"
-                    onClick={() =>
-                      shareLink(
-                        profileUrl,
-                        "Profil UrbexQueens",
-                        `Découvre le profil de ${displayName} sur UrbexQueens`
-                      )
-                    }
+                    onClick={handleShareProfile}
                   >
                     🔗 Partager
                   </button>
@@ -736,7 +888,13 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
                     </button>
                   ) : (
                     <>
-                      <button className="profile-follow-btn" onClick={handleFollow}>
+                      <button
+                        className={`profile-follow-btn${
+                          pendingFollowAction ? " is-pending" : ""
+                        }`}
+                        onClick={handleFollow}
+                        disabled={!!pendingFollowAction}
+                      >
                         {isFollowing
                           ? "Abonné"
                           : isPrivate
@@ -773,11 +931,13 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
 
             <div className="uq-profile-stat-tiles profile-hero-stats uq-profile-stats">
               {statTiles.map((stat) => (
-                <div key={stat.label} className="uq-profile-stat uq-stat-card">
-                  <div className="uq-profile-stat-icon uq-stat-chip">{stat.icon}</div>
-                  <div className="uq-profile-stat-value">{stat.value}</div>
-                  <div className="uq-profile-stat-label">{stat.label}</div>
-                </div>
+                <StatCard
+                  key={stat.label}
+                  value={stat.value}
+                  label={stat.label}
+                  icon={stat.icon}
+                  color="pink"
+                />
               ))}
             </div>
           </div>
@@ -792,14 +952,15 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
           />
         )}
 
-        {isPrivate && !canViewPrivate && (
-          <div className="uq-profile-card">
-            <h2 className="uq-profile-section-title">Compte privé</h2>
-            <p className="profile-hint">Abonne-toi pour voir les stories, posts et stats de ce profil.</p>
-          </div>
-        )}
+        <div className="uq-profile-content-grid">
+          {isPrivate && !canViewPrivate && (
+            <div className="uq-profile-card">
+              <h2 className="uq-profile-section-title">Compte privé</h2>
+              <p className="profile-hint">Abonne-toi pour voir les stories, posts et stats de ce profil.</p>
+            </div>
+          )}
 
-        {isOwner && followRequests.some((r) => r.status === "pending") && (
+          {isOwner && followRequests.some((r) => r.status === "pending") && (
           <div className="uq-profile-card">
             <h2 className="uq-profile-section-title">Demandes d’abonnement</h2>
             {followRequests
@@ -849,13 +1010,7 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
               <button
                 type="button"
                 className="uq-share-btn"
-                onClick={() =>
-                  shareLink(
-                    profileUrl,
-                    "Profil UrbexQueens",
-                    `Scanne ou ouvre le profil de ${displayName}`
-                  )
-                }
+                onClick={handleShareProfileQr}
               >
                 🔗 Partager
               </button>
@@ -864,29 +1019,55 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
               </a>
             </section>
 
-            <section className="uq-profile-card">
-              <h2 className="uq-profile-section-title">Badges</h2>
+            <section className="uq-profile-section">
+              <h2 className="uq-profile-section-title">🏆 Badges</h2>
               <div className="uq-profile-badges-list">
                 {ALL_BADGES.map((badge) => {
-                  const unlocked = unlockedBadges.find((b) => b.id === badge.id)?.unlocked;
+                  const unlocked = unlockedBadges.find((b) => b.id === badge.id)?.unlocked || false;
                   return (
-                    <div
+                    <BadgeItem
                       key={badge.id}
-                      className="uq-profile-badge-item"
-                      title={badge.description}
-                    >
-                      <div className="uq-profile-badge-icon">{badge.icon}</div>
-                      <div className="uq-profile-badge-text">
-                        <div className="uq-profile-badge-title">
-                          {badge.label} {unlocked ? "· Débloqué" : "· Verrouillé"}
-                        </div>
-                        <div className="uq-profile-badge-desc">
-                          {badge.unlockHint}
-                        </div>
-                      </div>
-                    </div>
+                      icon={badge.icon}
+                      label={badge.label}
+                      description={badge.description}
+                      unlockHint={badge.unlockHint}
+                      unlocked={unlocked}
+                    />
                   );
                 })}
+              </div>
+            </section>
+
+            <section className="uq-profile-section profile-achievements-card">
+              <div className="uq-profile-section-head">
+                <h2 className="uq-profile-section-title">
+                  Achievements
+                  <span className="profile-section-count">
+                    {achievementsUnlockedCount}/{ACHIEVEMENTS.length}
+                  </span>
+                </h2>
+                <span className="profile-hint">
+                  {achievementsUnlockedCount > 0
+                    ? `Tu as débloqué ${achievementsUnlockedCount} achievements.`
+                    : "Débloque des achievements en marquant tes runs et en accumulant l’XP."}
+                </span>
+              </div>
+              <div className="profile-achievement-grid">
+                {achievementTiles.map((achievement) => (
+                  <AchievementCard
+                    key={achievement.id}
+                    id={achievement.id}
+                    icon={achievement.icon}
+                    title={achievement.title}
+                    description={achievement.description}
+                    unlockHint={achievement.unlockHint}
+                    xp={achievement.xp}
+                    tier={achievement.tier}
+                    proOnly={achievement.proOnly ?? false}
+                    unlocked={achievement.unlocked}
+                    unlockedAt={achievement.unlockedAt}
+                  />
+                ))}
               </div>
             </section>
 
@@ -919,28 +1100,10 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
               </div>
             </section>
 
-            {isOwner && (
-              <section className="uq-profile-card profile-social-card">
-                <div className="uq-profile-section-head">
-                  <h2 className="uq-profile-section-title">Social</h2>
-                  <span className="profile-hint">
-                    Partage des nouvelles images comme sur ton feed préféré.
-                  </span>
-                </div>
-                <ProfilePostForm
-                  userId={uid}
-                  authorName={safeProfile.displayName || displayNameBase}
-                  authorAvatar={safeProfile.photoURL}
-                  authorIsPro={profileIsPro}
-                  onCreated={() => setSelectedPost(null)}
-                />
-              </section>
-            )}
-
-            <section className="uq-profile-card">
+            <section className="uq-profile-card profile-posts-section">
               <div className="uq-profile-section-head">
                 <h2 className="uq-profile-section-title">Posts urbex</h2>
-                {postsLoading && <span className="profile-hint">Chargement…</span>}
+                {postsLoading && <Skeleton className="profile-hint-skeleton" />}
               </div>
               <ProfilePostsGrid
                 posts={profilePosts}
@@ -1009,6 +1172,8 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
             </section>
           </>
         )}
+        </div>
+        
         {isOwner && (
           <div className="uq-profile-card profile-edit-shell">
             <div className="profile-edit-header">
@@ -1061,18 +1226,20 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
                   </button>
                   {editSections.media && (
                     <div className="profile-accordion-panel">
-                      <label className="profile-edit-row">
+                      <label className="profile-edit-row" htmlFor={PROFILE_PHOTO_INPUT_ID}>
                         <span>URL Photo</span>
                         <input
+                          id={PROFILE_PHOTO_INPUT_ID}
                           value={formPhoto}
                           onChange={(e) => setFormPhoto(e.target.value)}
                           placeholder="https://…"
                         />
                       </label>
 
-                      <label className="profile-edit-row">
+                      <label className="profile-edit-row" htmlFor={PROFILE_BANNER_INPUT_ID}>
                         <span>URL Bannière</span>
                         <input
+                          id={PROFILE_BANNER_INPUT_ID}
                           value={formBanner}
                           onChange={(e) => setFormBanner(e.target.value)}
                           placeholder="https://…"
@@ -1093,9 +1260,14 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
                   </button>
                   {editSections.privacy && (
                     <div className="profile-accordion-panel">
-                      <label className="profile-edit-row profile-privacy-toggle">
+                      <label
+                        className="profile-edit-row profile-privacy-toggle"
+                        htmlFor={PROFILE_PRIVACY_TOGGLE_ID}
+                        aria-label="Rendre mon profil privé"
+                      >
                         <div className="uq-toggle">
                           <input
+                            id={PROFILE_PRIVACY_TOGGLE_ID}
                             type="checkbox"
                             checked={formPrivate}
                             onChange={(e) => setFormPrivate(e.target.checked)}
@@ -1178,17 +1350,20 @@ export default function ProfilePage({ uid, onBack, view }: Props) {
       </div>
 
       {isCropModalOpen && (
+      <div
+        className="avatar-crop-modal"
+        role="button"
+        tabIndex={0}
+        aria-label="Fermer la modale de recadrage de l’avatar"
+        onClick={handleAvatarBackdropClick}
+        onKeyDown={handleAvatarBackdropKeyDown}
+      >
         <div
-          className="avatar-crop-modal"
+          className="avatar-crop-modal-content"
           role="dialog"
           aria-modal="true"
           aria-label="Recadrer l’avatar"
-          onClick={closeCropModal}
         >
-          <div
-            className="avatar-crop-modal-content"
-            onClick={(event) => event.stopPropagation()}
-          >
             <header className="avatar-crop-modal-header">
               <div>
                 <strong>Recadrer l’avatar</strong>

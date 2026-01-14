@@ -23,6 +23,8 @@ import {
 } from "../services/userProfiles";
 import type { UserSettings } from "../types/UserSettings";
 import "./SettingsPage.css";
+import { SettingsProfileSkeleton } from "../components/skeletons/LayoutSkeletons";
+import Skeleton from "../components/Skeleton";
 
 type SettingsPageProps = {
   onClose?: () => void;
@@ -383,7 +385,14 @@ export default function SettingsPage({ onClose }: SettingsPageProps) {
             </p>
           </div>
           <div className="uq-settings-meta">
-            <span>Statut : {loading ? "Chargement..." : "Prêt"}</span>
+            <span>
+              Statut :{" "}
+              {loading ? (
+                <Skeleton className="settings-status-skeleton" rounded shimmer />
+              ) : (
+                "Prêt"
+              )}
+            </span>
             {lastLogin && <span>Dernière connexion : {lastLogin}</span>}
           </div>
         </div>
@@ -391,30 +400,40 @@ export default function SettingsPage({ onClose }: SettingsPageProps) {
         <div className="settings-sections">
           <section className="settings-section">
             <h2 className="settings-section-title">Profil & compte</h2>
-            <div className="settings-row user-summary">
-              <div className="user-avatar">
-                {user.photoURL ? (
-                  <img src={user.photoURL} alt={displayName || email} />
-                ) : (
-                  <span>{(displayName || email || "U").charAt(0).toUpperCase()}</span>
-                )}
+            {loading ? (
+              <SettingsProfileSkeleton />
+            ) : (
+              <div className="settings-row user-summary">
+                <div className="user-avatar">
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt={displayName || email} />
+                  ) : (
+                    <span>
+                      {(displayName || email || "U")
+                        .charAt(0)
+                        .toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="user-summary-text">
+                  <div className="user-name">{displayName || "Explorateur"}</div>
+                  <div className="user-handle">
+                    @{username || (email || "").split("@")[0]}
+                  </div>
+                  <div className="user-email">{email}</div>
+                </div>
+                <div className="settings-row-actions">
+                  <button
+                    className="uq-secondary-btn"
+                    type="button"
+                    onClick={handleSaveProfile}
+                    disabled={profileSaving}
+                  >
+                    {profileSaving ? "En cours..." : "Modifier mon profil"}
+                  </button>
+                </div>
               </div>
-              <div className="user-summary-text">
-                <div className="user-name">{displayName || "Explorateur"}</div>
-                <div className="user-handle">@{username || (email || "").split("@")[0]}</div>
-                <div className="user-email">{email}</div>
-              </div>
-              <div className="settings-row-actions">
-                <button
-                  className="uq-secondary-btn"
-                  type="button"
-                  onClick={handleSaveProfile}
-                  disabled={profileSaving}
-                >
-                  {profileSaving ? "En cours..." : "Modifier mon profil"}
-                </button>
-              </div>
-            </div>
+            )}
 
             <div className="uq-settings-grid">
               <label className="uq-field">

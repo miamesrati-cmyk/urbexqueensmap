@@ -1,0 +1,123 @@
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { db } from "../lib/firebase";
+import { ensureWritesAllowed } from "../lib/securityGuard";
+
+export type Conversation = {
+  id: string;
+  participantIds: string[];
+  lastMessageText?: string;
+  lastMessageAt?: number;
+  lastMessageSender?: string;
+};
+
+export type Message = {
+  id: string;
+  fromUid: string;
+  text: string;
+  mediaUrl?: string;
+  createdAt: number;
+  seenBy: string[];
+};
+
+const CONV = collection(db, "conversations");
+
+function sortPair(a: string, b: string) {
+  return [a, b].sort().join("_");
+}
+
+export async function findOrCreateConversation(a: string, b: string) {
+  ensureWritesAllowed();
+  const pairKey = sortPair(a, b);
+  const existing = await getDocs(
+    query(CONV, where("pairKey", "==", pairKey), limit(1))
+  );
+  if (!existing.empty) return existing.docs[0].id;
+  const ref = await addDoc(CONV, {
+    participantIds: [a, b],
+    pairKey,
+    lastMessageAt: serverTimestamp(),
+    lastWriteTime: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export function listenConversations(
+  uid: string,
+  cb: (convs: Conversation[]) => void
+) {
+  const q = query(CONV, where("participantIds", "array-contains", uid), orderBy("lastMessageAt", "desc"));
+  return onSnapshot(q, (snap) => {
+    const out: Conversation[] = [];
+    snap.forEach((d) => {
+      const x: any = d.data();
+      out.push({
+        id: d.id,
+        participantIds: x.participantIds ?? [],
+        lastMessageText: x.lastMessageText,
+        lastMessageAt: x.lastMessageAt?.toMillis?.() ?? x.lastMessageAt,
+        lastMessageSender: x.lastMessageSender,
+      });
+    });
+    cb(out);
+  });
+}
+
+export function listenMessages(
+  conversationId: string,
+  cb: (messages: Message[]) => void
+) {
+  const col = collection(db, "conversations", conversationId, "messages");
+  const q = query(col, orderBy("createdAt", "asc"));
+  return onSnapshot(q, (snap) => {
+    const out: Message[] = [];
+    snap.forEach((d) => {
+      const x: any = d.data();
+      out.push({
+        id: d.id,
+        fromUid: x.fromUid,
+        text: x.text ?? "",
+        mediaUrl: x.mediaUrl,
+        createdAt: x.createdAt?.toMillis?.() ?? x.createdAt ?? Date.now(),
+        seenBy: x.seenBy ?? [],
+      });
+    });
+    cb(out);
+  });
+}
+
+export async function sendMessage(input: {
+  conversationId: string;
+  fromUid: string;
+  text: string;
+  mediaUrl?: string;
+}) {
+  ensureWritesAllowed();
+  const col = collection(db, "conversations", input.conversationId, "messages");
+  await addDoc(col, {
+    fromUid: input.fromUid,
+    text: input.text,
+    mediaUrl: input.mediaUrl ?? null,
+    createdAt: serverTimestamp(),
+    seenBy: [input.fromUid],
+    lastWriteTime: serverTimestamp(),
+  });
+
+  await updateDoc(doc(db, "conversations", input.conversationId), {
+    lastMessageText: input.text,
+    lastMessageAt: serverTimestamp(),
+    lastMessageSender: input.fromUid,
+    lastWriteTime: serverTimestamp(),
+  });
+}

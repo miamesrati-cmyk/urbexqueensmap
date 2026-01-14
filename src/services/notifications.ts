@@ -3,13 +3,14 @@ import {
   doc,
   getDocs,
   limit,
-  onSnapshot,
+  
   orderBy,
   query,
   updateDoc,
   where,
   writeBatch,
 } from "firebase/firestore";
+import { onSnapshot } from "../lib/firestoreHelpers";
 import { db } from "../lib/firebase";
 import type { NotificationItem, NotificationActorSnapshot } from "../lib/notifications";
 

@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -6,6 +7,7 @@ import {
   type MutableRefObject,
 } from "react";
 import mapboxgl from "mapbox-gl";
+import Skeleton from "./Skeleton";
 
 type LngLatLikeTuple = [number, number];
 
@@ -47,6 +49,67 @@ const safeJson = (value: unknown) => {
     return String(error);
   }
 };
+
+const isSafariUserAgent = (ua: string) => {
+  if (!ua) return false;
+  return (
+    /Safari/.test(ua) &&
+    !/(Chrome|Chromium|CriOS|FxiOS|Edge|Edg|OPR|Opera)/i.test(ua)
+  );
+};
+
+const BLOCKED_REQUEST_REGEX = /(blocked|csp|cors|token|network|ERR_BLOCKED_BY_CLIENT|403|401|429)/i;
+
+const FAILURE_VARIANTS: Record<
+  string,
+  {
+    title: string;
+    ctaLabel: string;
+    ctaUrl?: string;
+  }
+> = {
+  webgl_context_unavailable: {
+    title: "WebGL désactivé",
+    ctaLabel: "Activer WebGL",
+    ctaUrl: "https://support.apple.com/guide/safari/ibrw1081/ios",
+  },
+  storage_blocked: {
+    title: "Mode privé détecté",
+    ctaLabel: "Quitter le mode privé",
+    ctaUrl: "https://support.apple.com/fr-fr/guide/safari/sfri40704/mac",
+  },
+  mapbox_request_blocked: {
+    title: "Requêtes Mapbox bloquées",
+    ctaLabel: "Vérifier token / bloqueur",
+    ctaUrl: "https://docs.mapbox.com/help/troubleshooting/access-token/",
+  },
+};
+
+const maybeLogMapboxRequestBlocked = (
+  event: any,
+  safari: boolean,
+  diagnosticsEnabled: boolean
+) => {
+  const status = event?.error?.status;
+  const message = event?.error?.message ?? event?.message ?? "";
+  if (
+    BLOCKED_REQUEST_REGEX.test(message) ||
+    (typeof status === "number" && [401, 403, 429].includes(status))
+  ) {
+    if (diagnosticsEnabled) {
+      console.warn("[UQ][MAPBOX_REQUEST_BLOCKED]", {
+        message,
+        status,
+        url: event?.error?.url,
+        safari,
+      });
+    }
+    return true;
+  }
+  return false;
+};
+
+const STORAGE_PROBE_KEY = "__uq_storage_private_mode_probe__";
 
 const clearLoadStateInterval = (ref: MutableRefObject<number | null>) => {
   if (ref.current !== null) {
@@ -118,6 +181,21 @@ const getCanvasDebug = (map: mapboxgl.Map) => {
   };
 };
 
+const MIN_MAP_BOOT_DISPLAY_MS = 250;
+
+const getFriendlyFailureMessage = (reason: string) => {
+  switch (reason) {
+    case "style_timeout":
+      return "Le style a pris trop de temps à charger.";
+    case "style_error":
+      return "Impossible de charger la carte.";
+    case "webgl_context_lost":
+      return "Le rendu graphique a été interrompu.";
+    default:
+      return "La carte est indisponible pour le moment.";
+  }
+};
+
 export default function MapView({
   className,
   initialCenter = DEFAULT_CENTER_MTL,
@@ -126,7 +204,7 @@ export default function MapView({
   interactive = true,
   onMapReady,
 }: MapViewProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const resizeObsRef = useRef<ResizeObserver | null>(null);
   const loadStateIntervalRef = useRef<number | null>(null);
@@ -142,9 +220,16 @@ export default function MapView({
   const lastCanvasDebugRef = useRef<Record<string, unknown> | null>(null);
   const lastMapboxErrorRef = useRef<Record<string, unknown> | null>(null);
   const failureReasonRef = useRef<string | null>(null);
+  const mapLoadedRef = useRef(false);
+  const mapResizedOnceRef = useRef(false);
+  const bootStartRef = useRef(0);
+  const bootTimerRef = useRef<number | null>(null);
   const lastStyleUrlRef = useRef(
     styleUrl || "mapbox://styles/mapbox/dark-v11"
   );
+  const [mapBooting, setMapBooting] = useState(true);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapFailReason, setMapFailReason] = useState<string | null>(null);
   const [mapFailed, setMapFailed] = useState(false);
   const [retryCooldown, setRetryCooldown] = useState(false);
   const [retryAttempts, setRetryAttempts] = useState(0);
@@ -156,6 +241,56 @@ export default function MapView({
     (import.meta as any).env?.VITE_MAPBOX_TOKEN ||
     (import.meta as any).env?.VITE_MAPBOX_ACCESS_TOKEN ||
     "";
+  const clearBootTimer = useCallback(() => {
+    if (
+      bootTimerRef.current !== null &&
+      typeof window !== "undefined"
+    ) {
+      window.clearTimeout(bootTimerRef.current);
+    }
+    bootTimerRef.current = null;
+  }, []);
+
+  const resetBootCycle = useCallback(() => {
+    mapLoadedRef.current = false;
+    mapResizedOnceRef.current = false;
+    bootStartRef.current =
+      typeof performance !== "undefined"
+        ? performance.now()
+        : Date.now();
+    clearBootTimer();
+  }, [clearBootTimer]);
+
+  const finishBootIfReady = useCallback(() => {
+    if (!mapLoadedRef.current || !mapResizedOnceRef.current) return;
+    setMapReady(true);
+    const now =
+      typeof performance !== "undefined"
+        ? performance.now()
+        : Date.now();
+    const elapsed = now - bootStartRef.current;
+    const remaining =
+      elapsed >= MIN_MAP_BOOT_DISPLAY_MS
+        ? 0
+        : MIN_MAP_BOOT_DISPLAY_MS - elapsed;
+    clearBootTimer();
+    if (remaining === 0 || typeof window === "undefined") {
+      setMapBooting(false);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      bootTimerRef.current = window.setTimeout(() => {
+        setMapBooting(false);
+        bootTimerRef.current = null;
+      }, remaining);
+    }
+  }, [clearBootTimer]);
+
+  const markBootResized = useCallback(() => {
+    if (mapResizedOnceRef.current) return;
+    mapResizedOnceRef.current = true;
+    finishBootIfReady();
+  }, [finishBootIfReady]);
   const isDevEnv = Boolean((import.meta as any).env?.DEV);
   const storageDebugFlag =
     typeof window !== "undefined" &&
@@ -164,12 +299,14 @@ export default function MapView({
   const envDebugRaw = (import.meta as any).env?.VITE_UQ_MAP_DEBUG;
   const envDebugFlag =
     typeof envDebugRaw === "string" && envDebugRaw.toLowerCase() === "true";
-  const debugEnabled = envDebugFlag || storageDebugFlag;
+  // Désactive le debug Mapbox par défaut (tiles, collision boxes, etc.)
+  const debugEnabled = false; // Avant: envDebugFlag || storageDebugFlag
   const debugSource = envDebugFlag
     ? "env"
     : storageDebugFlag
     ? "localStorage"
     : "none";
+  const diagnosticLoggingEnabled = isDevEnv || debugMode;
 
   const resolvedStyleUrl = useMemo(() => {
     return styleUrl || DEFAULT_STYLE_URL;
@@ -187,15 +324,21 @@ export default function MapView({
 
   useEffect(() => {
     void mapRetryKey;
-    const el = containerRef.current;
+    const el = mapContainerRef.current;
     if (!el) return;
     if (mapRef.current) return;
+
+    resetBootCycle();
+    setMapBooting(true);
+    setMapReady(false);
+    setMapFailReason(null);
+    setMapFailed(false);
 
     lastLoadStateTickRef.current = null;
     lastCanvasDebugRef.current = null;
     lastMapboxErrorRef.current = null;
 
-    if (isDevEnv) {
+    if (diagnosticLoggingEnabled) {
       console.log(
         `[UQ][MAP_DEBUG] enabled=${debugEnabled} source=${debugSource}`
       );
@@ -221,10 +364,14 @@ export default function MapView({
       }
     };
 
-    const markFailure = (reason: string) => {
+    const markFailure = (reason: string, userMessage?: string) => {
       if (failureReasonRef.current === reason) return;
       clearFailureTimer();
       failureReasonRef.current = reason;
+      setMapFailReason(userMessage ?? getFriendlyFailureMessage(reason));
+      clearBootTimer();
+      setMapBooting(false);
+      setMapReady(false);
       setMapFailed(true);
       if (isDevEnv || debugMode) {
         console.warn(`[UQ][MAP_FAIL] reason=${reason}`);
@@ -242,15 +389,141 @@ export default function MapView({
       }, 10000);
     };
 
+    const userAgent =
+      typeof navigator === "undefined" ? "" : navigator.userAgent || "";
+    const safariDetected = Boolean(userAgent && isSafariUserAgent(userAgent));
+
+    const storageBlockedMessage =
+      "Le mode privé ou la protection des données bloque l'accès au stockage local. Quitte le mode privé pour afficher la carte.";
+    const detectLocalStorageBlocked = () => {
+      if (typeof window === "undefined") return false;
+      try {
+        window.localStorage.setItem(STORAGE_PROBE_KEY, "1");
+        window.localStorage.removeItem(STORAGE_PROBE_KEY);
+        return false;
+      } catch (error) {
+        if (diagnosticLoggingEnabled) {
+          console.warn("[UQ][STORAGE_BLOCKED] localStorage blocked (Private Mode?)", error);
+        }
+        return true;
+      }
+    };
+    let storageFailureNotified = false;
+    const notifyStorageFailure = () => {
+      if (storageFailureNotified) return;
+      storageFailureNotified = true;
+      markFailure("storage_blocked", storageBlockedMessage);
+    };
+    if (detectLocalStorageBlocked()) {
+      notifyStorageFailure();
+      return;
+    }
+    if (typeof window !== "undefined") {
+      try {
+        const idbFactory = window.indexedDB;
+        if (idbFactory) {
+          const request = idbFactory.open(STORAGE_PROBE_KEY, 1);
+          request.onerror = () => {
+            if (diagnosticLoggingEnabled) {
+              console.warn(
+                "[UQ][STORAGE_BLOCKED] indexedDB blocked (Private Mode?)",
+                request.error
+              );
+            }
+            notifyStorageFailure();
+          };
+          request.onsuccess = () => {
+            const db = request.result;
+            db?.close();
+            idbFactory.deleteDatabase(STORAGE_PROBE_KEY);
+          };
+        }
+      } catch (error) {
+        if (diagnosticLoggingEnabled) {
+          console.warn("[UQ][STORAGE_BLOCKED] IndexedDB probe error", error);
+        }
+      }
+    }
+
+    const ensureWebGLAvailable = () => {
+      if (typeof window === "undefined") return true;
+      const isMapboxSupported = mapboxgl.supported();
+      let canvasHasContext = false;
+      try {
+        if (typeof document !== "undefined") {
+          const testCanvas = document.createElement("canvas");
+          canvasHasContext =
+            Boolean(testCanvas.getContext("webgl")) ||
+            Boolean(testCanvas.getContext("experimental-webgl"));
+        }
+      } catch (error) {
+        console.warn("[UQ][WEBGL_CHECK_ERROR]", error);
+      }
+      if (diagnosticLoggingEnabled) {
+        console.info(
+          `[UQ][WEBGL_CHECK] mapboxSupported=${isMapboxSupported} canvasContext=${canvasHasContext} safari=${safariDetected}`
+        );
+      }
+      if (!isMapboxSupported) {
+        const message = safariDetected
+          ? "WebGL est bloqué sur Safari, active-le dans les réglages avancés."
+          : "WebGL est désactivé dans ce navigateur.";
+        markFailure("webgl_context_unavailable", message);
+        return false;
+      }
+      if (!canvasHasContext) {
+        const message = safariDetected
+          ? "Safari empêche la création d'un contexte WebGL. Autorise WebGL pour charger la carte."
+          : "Impossible de créer un contexte WebGL.";
+        markFailure("webgl_context_unavailable", message);
+        return false;
+      }
+      return true;
+    };
+
+    if (!ensureWebGLAvailable()) {
+      return;
+    }
+
     const styleForMap = resolvedStyleUrlRef.current;
     lastStyleUrlRef.current = styleForMap;
-    const map = new mapboxgl.Map({
-      container: el,
-      style: styleForMap,
-      center: initialCenter,
-      zoom: initialZoom,
-      interactive,
-    });
+    let mapInstance: mapboxgl.Map | null = null;
+    if (diagnosticLoggingEnabled) {
+      console.info("[UQ][MAP_INIT] started", {
+        style: styleForMap,
+        center: initialCenter,
+        zoom: initialZoom,
+        interactive,
+      });
+    }
+    try {
+      mapInstance = new mapboxgl.Map({
+        container: el,
+        style: styleForMap,
+        center: initialCenter,
+        zoom: initialZoom,
+        interactive,
+      });
+    } catch (initError) {
+      console.error("[UQ][MAP_INIT_ERR] Failed to initialize Mapbox", initError);
+      const message =
+        initError instanceof Error
+          ? initError.message
+          : String(initError ?? "unknown error");
+      markFailure("init_error", `Impossible d'initialiser Mapbox : ${message}`);
+      return;
+    }
+    if (!mapInstance) {
+      markFailure(
+        "init_error",
+        "La création de la carte a échoué sans erreur explicite."
+      );
+      return;
+    }
+    const map = mapInstance;
+    if (diagnosticLoggingEnabled) {
+      console.info("[UQ][MAP_INIT] Mapbox instance ready");
+    }
     onMapReadyRef.current?.(map);
 
     const addDefaultControls = () => {
@@ -301,43 +574,57 @@ export default function MapView({
       cancelStableResizeFrames();
       layoutStableResizeFramesRef.current.first = window.requestAnimationFrame(() => {
         layoutStableResizeFramesRef.current.first = null;
-        layoutStableResizeFramesRef.current.second = window.requestAnimationFrame(() => {
-          layoutStableResizeFramesRef.current.second = null;
-          const canvasElement = canvasRef.current;
-          if (!canvasElement) return;
-          const latestRect = canvasElement.getBoundingClientRect();
-          if (
-            latestRect.width !== referenceRect.width ||
-            latestRect.height !== referenceRect.height
-          ) {
-            try {
-              map.resize();
-            } catch {
-              // Resize may fail if map was removed.
+          layoutStableResizeFramesRef.current.second = window.requestAnimationFrame(() => {
+            layoutStableResizeFramesRef.current.second = null;
+            const canvasElement = canvasRef.current;
+            if (!canvasElement) return;
+            const latestRect = canvasElement.getBoundingClientRect();
+            if (
+              latestRect.width !== referenceRect.width ||
+              latestRect.height !== referenceRect.height
+            ) {
+              try {
+                map.resize();
+                markBootResized();
+              } catch {
+                // Resize may fail if map was removed.
+              }
             }
-          }
-        });
+          });
       });
     };
 
-    if (isDevEnv) {
+    if (diagnosticLoggingEnabled) {
       console.log("[UQ][MAPBOX_TOKEN_PRESENT]", Boolean(token));
     }
 
+    const mapboxBlockedMessage =
+      "Une extension, une politique CSP ou un token invalide empêche les requêtes Mapbox. Désactive le bloqueur ou vérifie le token.";
     const onError = (e: any) => {
-      console.error("[UQ][MAPBOX_ERROR]", {
-        message: e?.error?.message,
-        status: e?.error?.status,
-        url: e?.error?.url,
-        sourceId: e?.sourceId,
-        tile: e?.tile,
-        raw: e,
-      });
+      const blockedRequest = maybeLogMapboxRequestBlocked(
+        e,
+        safariDetected,
+        diagnosticLoggingEnabled
+      );
+      if (diagnosticLoggingEnabled) {
+        console.error("[UQ][MAPBOX_ERROR]", {
+          message: e?.error?.message,
+          status: e?.error?.status,
+          url: e?.error?.url,
+          sourceId: e?.sourceId,
+          tile: e?.tile,
+          raw: e,
+        });
+      }
       lastMapboxErrorRef.current = {
         status: e?.error?.status,
         url: e?.error?.url,
         message: e?.error?.message,
       };
+      if (blockedRequest) {
+        markFailure("mapbox_request_blocked", mapboxBlockedMessage);
+        return;
+      }
       markFailure("style_error");
     };
 
@@ -346,9 +633,17 @@ export default function MapView({
     };
 
     const onLoad = () => {
+      mapLoadedRef.current = true;
       console.log("[UQ][MAP_LOADED]");
       addDefaultControls();
-      requestAnimationFrame(() => map.resize());
+      requestAnimationFrame(() => {
+        try {
+          map.resize();
+          markBootResized();
+        } catch {
+          // Resize may fail if the map was removed early.
+        }
+      });
       const canvasDebug = getCanvasDebug(map);
       const rect = canvasDebug.rect;
       scheduleStableResize(rect);
@@ -370,6 +665,7 @@ export default function MapView({
       clearLoadInterval();
       clearFailureTimer();
       failureReasonRef.current = null;
+      setMapFailReason(null);
       setMapFailed(false);
       setRetryCooldown(false);
       setRetryAttempts(0);
@@ -445,6 +741,7 @@ export default function MapView({
     }
 
     return () => {
+      clearBootTimer();
       clearLoadInterval();
       clearFailureTimer();
       cancelStableResizeFrames();
@@ -480,6 +777,9 @@ export default function MapView({
     debugEnabled,
     debugSource,
     mapRetryKey,
+    clearBootTimer,
+    markBootResized,
+    resetBootCycle,
   ]);
 
   useEffect(() => {
@@ -506,6 +806,7 @@ export default function MapView({
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
 
   useEffect(() => {
     if (!isDevEnv) return;
@@ -543,6 +844,7 @@ export default function MapView({
       }, 2500);
     }
     failureReasonRef.current = null;
+    setMapFailReason(null);
     setMapFailed(false);
     setRetryAttempts((prev) => prev + 1);
     setMapRetryKey((prev) => prev + 1);
@@ -574,6 +876,15 @@ ${safeJson(diagnostics)}`;
     }
   };
 
+  const failureVariant = failureReasonRef.current
+    ? FAILURE_VARIANTS[failureReasonRef.current]
+    : undefined;
+  const failureTitle = failureVariant?.title ?? "Carte indisponible";
+  const failureCtaLabel = failureVariant?.ctaLabel;
+  const handleFailureCta = () => {
+    if (!failureVariant?.ctaUrl || typeof window === "undefined") return;
+    window.open(failureVariant.ctaUrl, "_blank", "noopener");
+  };
   const failureReason =
     (isDevEnv || debugMode) && failureReasonRef.current
       ? failureReasonRef.current
@@ -586,74 +897,76 @@ ${safeJson(diagnostics)}`;
     : "Réessaie ou recharge la page.";
   const buttonLabel = retryCooldown ? "…" : "Réessayer";
   const buttonDisabled = retryCooldown || !isOnline || attemptLimitReached;
+  const failureSubtitle = mapFailReason || overlayMessage;
+  const mapContainerClassName = className || "mapbox-container";
+  const shellClassName = [
+    "uq-map-shell",
+    mapBooting ? "uq-map-shell--booting" : "",
+    mapReady ? "uq-map-shell--ready" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div
-      key={mapRetryKey}
-      ref={containerRef}
-      className={className || "mapbox-container"}
-      style={{ width: "100%", height: "100%", position: "relative" }}
-    >
+    <div key={mapRetryKey} className={shellClassName}>
+      <div
+        ref={mapContainerRef}
+        className={`uq-map-canvas ${mapContainerClassName}`}
+      />
+      {mapBooting && (
+        <div className="uq-map-loading-overlay" aria-live="polite">
+          <div className="uq-map-loading-card">
+            <div className="uq-spinner" />
+            <Skeleton className="panel-loading__line" />
+            <Skeleton className="panel-loading__line" />
+          </div>
+        </div>
+      )}
       {mapFailed && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            background: "rgba(0, 0, 0, 0.65)",
-            color: "#fff",
-            padding: 16,
-            textAlign: "center",
-            pointerEvents: "auto",
-          }}
-        >
-          <strong style={{ fontSize: 18 }}>Carte indisponible</strong>
-          <span>{overlayMessage}</span>
-          {failureReason && <small>reason={failureReason}</small>}
-          {attemptLimitReached && (
-            <small>3 tentatives max, pense à recharger.</small>
-          )}
-          <button
-            type="button"
-            onClick={handleRetry}
-            disabled={buttonDisabled}
-            style={{
-              background: buttonDisabled ? "#888" : "#ff5fa2",
-              border: "none",
-              borderRadius: 999,
-              color: "#fff",
-              padding: "8px 16px",
-              cursor: buttonDisabled ? "not-allowed" : "pointer",
-              fontWeight: 600,
-              opacity: buttonDisabled ? 0.6 : 1,
-            }}
-          >
-            {buttonLabel}
-          </button>
-          {debugMode && (
-            <button
-              type="button"
-              onClick={copyDiagnostics}
-              style={{
-                background: "#222",
-                border: "none",
-                borderRadius: 999,
-                color: "#fff",
-                padding: "6px 14px",
-                cursor: "pointer",
-                fontWeight: 600,
-                marginTop: 4,
-              }}
-            >
-              Copy diagnostics
-            </button>
-          )}
+        <div className="uq-map-error-overlay" role="status" aria-live="polite">
+          <div className="uq-map-loading-card">
+            <div className="uq-map-loading-title">{failureTitle}</div>
+            <div className="uq-map-loading-sub">{failureSubtitle}</div>
+            {attemptLimitReached && (
+              <small className="uq-map-error-note">
+                3 tentatives max, pense à recharger.
+              </small>
+            )}
+            <div className="uq-map-error-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  if (buttonDisabled) return;
+                  handleRetry();
+                  window.location.reload();
+                }}
+                disabled={buttonDisabled}
+              >
+                {buttonLabel}
+              </button>
+              {failureCtaLabel && (
+                <button
+                  type="button"
+                  className="uq-map-error-ghost"
+                  onClick={handleFailureCta}
+                >
+                  {failureCtaLabel}
+                </button>
+              )}
+              {debugMode && (
+                <button
+                  type="button"
+                  onClick={copyDiagnostics}
+                  className="uq-map-error-ghost"
+                >
+                  Copy diagnostics
+                </button>
+              )}
+            </div>
+            {debugMode && failureReason && (
+              <small className="uq-map-error-note">reason={failureReason}</small>
+            )}
+          </div>
         </div>
       )}
     </div>

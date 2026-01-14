@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   doc,
   getDoc,
-  onSnapshot,
   serverTimestamp,
   setDoc,
   type DocumentData,
   updateDoc,
 } from "firebase/firestore";
+import { onSnapshot } from "../lib/firestoreHelpers";
 import { db, appCheck } from "../lib/firebase";
 import { useCurrentUserRole } from "./useCurrentUserRole";
 import type { AdminUiConfig } from "../../shared/adminUiConfig";
@@ -19,6 +19,7 @@ import {
   ADMIN_UI_OVERLAY_DEVICE_SCOPES,
   ADMIN_UI_THEME_PRESETS,
 } from "../../shared/adminUiConfig";
+export type { ThemePreset } from "../../shared/adminUiConfig";
 
 type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object
@@ -364,7 +365,7 @@ export function useAdminUiConfig() {
       }
     );
     return () => unsubscribe();
-  }, []);
+  }, [configDocRef]);
 
   useEffect(() => {
     if (!isAdmin || docExists || creationGuardRef.current) {
@@ -400,7 +401,7 @@ export function useAdminUiConfig() {
         console.error("[UQ][ADMIN_UI_CONFIG_INIT]", creationError);
       }
     })();
-  }, [isAdmin, docExists, user?.uid]);
+  }, [configDocRef, isAdmin, docExists, user?.uid]);
 
   const flushPatch = useCallback(async () => {
     const patch = pendingPatchRef.current;
@@ -449,7 +450,7 @@ export function useAdminUiConfig() {
           : "Impossible de sauvegarder la configuration."
       );
     }
-  }, [isAdmin, user?.uid]);
+  }, [configDocRef, isAdmin, user?.uid]);
 
   const scheduleFlush = useCallback(() => {
     if (flushTimerRef.current) {
@@ -519,7 +520,7 @@ export function useAdminUiConfig() {
         );
       }
     },
-    [isSuperAdmin, user?.uid]
+    [configDocRef, isSuperAdmin, user?.uid]
   );
 
   return {

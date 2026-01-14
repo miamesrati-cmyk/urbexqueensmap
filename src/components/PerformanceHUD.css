@@ -1,0 +1,212 @@
+/* ⚡ Performance HUD Styles (Dev-only) */
+
+.performance-hud {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  color: #fff;
+  min-width: 280px;
+  z-index: 10000;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.performance-hud-header {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  color: #00ff88;
+}
+
+.performance-hud-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.performance-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.performance-metric-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.performance-metric-value {
+  font-size: 16px;
+  font-weight: bold;
+  color: #fff;
+}
+
+/* Performance status colors */
+.performance-metric--good .performance-metric-value {
+  color: #00ff88;
+}
+
+.performance-metric--ok .performance-metric-value {
+  color: #ffaa00;
+}
+
+.performance-metric--bad .performance-metric-value {
+  color: #ff4444;
+  animation: pulse-red 1s ease-in-out infinite;
+}
+
+@keyframes pulse-red {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Warning Banner */
+.performance-hud-warning {
+  background: rgba(255, 68, 68, 0.2);
+  border: 1px solid #ff4444;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  color: #ff4444;
+  font-size: 11px;
+  font-weight: bold;
+  text-align: center;
+  animation: flash-warning 0.5s ease-in-out 3;
+}
+
+@keyframes flash-warning {
+  0%, 100% {
+    background: rgba(255, 68, 68, 0.2);
+  }
+  50% {
+    background: rgba(255, 68, 68, 0.4);
+  }
+}
+
+/* Status Summary */
+.performance-hud-status {
+  text-align: center;
+  padding: 8px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.performance-status-good {
+  color: #00ff88;
+  font-weight: bold;
+}
+
+.performance-status-ok {
+  color: #ffaa00;
+  font-weight: bold;
+}
+
+.performance-status-bad {
+  color: #ff4444;
+  font-weight: bold;
+}
+
+/* Performance Budget Bar */
+.performance-hud-budget {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.performance-budget-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.performance-budget-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.performance-budget-track {
+  position: relative;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.performance-budget-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.performance-budget-fill--good {
+  background: linear-gradient(90deg, #00ff88, #00dd77);
+}
+
+.performance-budget-fill--ok {
+  background: linear-gradient(90deg, #ffaa00, #ff8800);
+}
+
+.performance-budget-fill--bad {
+  background: linear-gradient(90deg, #ff4444, #dd0000);
+}
+
+.performance-budget-marker {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.5);
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.7);
+  padding-top: 2px;
+  padding-left: 4px;
+  white-space: nowrap;
+}
+
+.performance-budget-marker--ideal {
+  border-left: 2px dashed rgba(0, 255, 136, 0.5);
+}
+
+.performance-budget-marker--max {
+  border-left: 2px dashed rgba(255, 68, 68, 0.5);
+}
+
+/* Compact mode for smaller screens */
+@media (max-width: 768px) {
+  .performance-hud {
+    top: 8px;
+    right: 8px;
+    padding: 12px;
+    min-width: 240px;
+  }
+
+  .performance-hud-metrics {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .performance-metric-value {
+    font-size: 14px;
+  }
+}

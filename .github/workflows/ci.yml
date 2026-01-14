@@ -1,0 +1,198 @@
+name: CI
+on:
+  push:
+    branches-ignore:
+      - dependabot/** # reduce noise from dependency bots
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  actions: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.16.0
+          cache: npm
+      - run: npm ci
+      - run: git diff --exit-code package-lock.json
+      - run: npm run lint
+
+  typecheck:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.16.0
+          cache: npm
+      - run: npm ci
+      - run: git diff --exit-code package-lock.json
+      - run: npx tsc --noEmit
+
+  build:
+    name: build (lint + typecheck gated)
+    needs: [lint, typecheck]
+    runs-on: ubuntu-latest
+    if: ${{ ! (startsWith(github.ref, "refs/heads/main") || startsWith(github.ref, "refs/tags/")) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.16.0
+          cache: npm
+
+      - run: npm ci
+      - run: git diff --exit-code package-lock.json
+
+      - name: Build env
+        run: |
+          echo "VITE_MAPBOX_TOKEN=pk.dummytoken1234567890" >> "$GITHUB_ENV"
+          echo "VITE_FIREBASE_API_KEY=dummy-api-key" >> "$GITHUB_ENV"
+          echo "VITE_FIREBASE_PROJECT_ID=dummy-project-id" >> "$GITHUB_ENV"
+          echo "VITE_FIREBASE_APP_ID=1:123:web:dummyacid" >> "$GITHUB_ENV"
+          echo "VITE_ENABLE_E2E_HOOKS=1" >> "$GITHUB_ENV"
+
+      - run: npm run build
+
+      - name: Bundle size report
+        run: bash scripts/bundle-size-report.sh --threshold 12 --mode warn --dir dist
+
+      - name: Emit build metadata
+        run: |
+          mkdir -p dist
+          cat <<EOF > dist/build.json
+{"sha":"${GITHUB_SHA}","runId":"${GITHUB_RUN_ID}","runNumber":"${GITHUB_RUN_NUMBER}","bundleSizeMiB":"$(du -sm dist | cut -f1)","time":"$(date -u +"%Y-%m-%dT%H:%M:%SZ")","branch":"${GITHUB_REF}"}
+EOF
+
+      - name: Upload build output
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+  strict-build:
+    name: strict build (main/tags)
+    needs: [lint, typecheck]
+    if: ${{ startsWith(github.ref, "refs/heads/main") || startsWith(github.ref, "refs/tags/") }}
+    runs-on: ubuntu-latest
+    env:
+      VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
+      VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+      VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+      VITE_ENABLE_E2E_HOOKS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.16.0
+          cache: npm
+
+      - run: npm ci
+      - run: git diff --exit-code package-lock.json
+
+      - name: Ensure required secrets exist
+        run: |
+          set -euo pipefail
+          required=(VITE_MAPBOX_TOKEN VITE_FIREBASE_API_KEY VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_APP_ID)
+          missing=false
+          for key in "${required[@]}"; do
+            if [ -z "${!key:-}" ]; then
+              echo "Missing required secret $key" >&2
+              missing=true
+            fi
+          done
+          if [ "$missing" = true ]; then
+            exit 1
+          fi
+
+      - run: npm run build
+
+      - name: Bundle size report
+        run: bash scripts/bundle-size-report.sh --threshold 12 --mode fail --dir dist
+
+      - name: Emit build metadata
+        run: |
+          mkdir -p dist
+          cat <<EOF > dist/build.json
+{"sha":"${GITHUB_SHA}","runId":"${GITHUB_RUN_ID}","runNumber":"${GITHUB_RUN_NUMBER}","bundleSizeMiB":"$(du -sm dist | cut -f1)","time":"$(date -u +"%Y-%m-%dT%H:%M:%SZ")","branch":"${GITHUB_REF}"}
+EOF
+
+      - name: Upload build output
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+  test:
+    name: soft-gated tests
+    needs: [build, strict-build]
+    runs-on: ubuntu-latest
+    env:
+      IS_MAIN_OR_TAG: ${{ startsWith(github.ref, "refs/heads/main") || startsWith(github.ref, "refs/tags/") }}
+      PLAYWRIGHT_BLOCKING: ${{ secrets.PLAYWRIGHT_BLOCKING || "0" }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.16.0
+          cache: npm
+
+      - run: npm ci
+      - run: git diff --exit-code package-lock.json
+
+      - name: Test env
+        run: |
+          echo "VITE_MAPBOX_TOKEN=pk.dummytoken1234567890" >> "$GITHUB_ENV"
+          echo "VITE_FIREBASE_API_KEY=dummy-api-key" >> "$GITHUB_ENV"
+          echo "VITE_FIREBASE_PROJECT_ID=dummy-project-id" >> "$GITHUB_ENV"
+          echo "VITE_FIREBASE_APP_ID=1:123:web:dummyacid" >> "$GITHUB_ENV"
+          echo "VITE_ENABLE_E2E_HOOKS=1" >> "$GITHUB_ENV"
+
+      - name: Vitest
+        run: npx vitest run --passWithNoTests
+        continue-on-error: ${{ env.IS_MAIN_OR_TAG == 'false' }}
+
+      - run: npx playwright install --with-deps
+        continue-on-error: true
+
+      - name: Playwright tests
+        id: playwright-test
+        run: npx playwright test --retries=1
+        continue-on-error: ${{ env.PLAYWRIGHT_BLOCKING != '1' }}
+
+      - name: Upload Playwright artifacts
+        if: steps.playwright-test.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-failure
+          path: playwright-report
+
+  audit:
+    name: optional npm audit
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.16.0
+          cache: npm
+      - run: npm ci
+      - run: git diff --exit-code package-lock.json
+      - name: npm audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true

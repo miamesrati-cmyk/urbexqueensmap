@@ -1,5 +1,6 @@
 // src/services/users.ts
-import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { onSnapshot } from "../lib/firestoreHelpers";
 import { db } from "../lib/firebase";
 import { ensureWritesAllowed } from "../lib/securityGuard";
 
@@ -16,6 +17,8 @@ export type UserProfile = {
   roles?: UserRoles;
   proStatus?: string | null;
   proStatusUpdatedAt?: any;
+  plan?: string | null;
+  stripeCustomerId?: string | null;
 };
 
 const DEFAULT_USER_PROFILE: Omit<UserProfile, "uid"> = {
@@ -23,6 +26,8 @@ const DEFAULT_USER_PROFILE: Omit<UserProfile, "uid"> = {
   isPro: false,
   isAdmin: false,
   proStatus: null,
+  plan: null,
+  stripeCustomerId: null,
 };
 
 // Écoute le profil utilisateur dans Firestore
@@ -46,6 +51,9 @@ export function listenUserProfile(
         roles,
         proStatus: data.proStatus ?? DEFAULT_USER_PROFILE.proStatus,
         proStatusUpdatedAt: data.proStatusUpdatedAt ?? null,
+        plan: typeof data.plan === "string" ? data.plan : null,
+        stripeCustomerId:
+          typeof data.stripeCustomerId === "string" ? data.stripeCustomerId : null,
       };
       callback(profile);
     } else {

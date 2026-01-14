@@ -1,0 +1,486 @@
+/* ═══════════════════════════════════════════════════════════════
+   🔒 GUEST LIMIT MODAL - Incitation inscription
+   ═══════════════════════════════════════════════════════════════ */
+
+.guest-limit-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 6, 12, 0.86);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 200ms ease forwards;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: opacity 200ms ease;
+  will-change: opacity;
+}
+
+.guest-limit-modal-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 4px 4px;
+  mix-blend-mode: screen;
+  opacity: 0.05;
+}
+
+.guest-limit-modal-content {
+  background: linear-gradient(
+    135deg,
+    rgba(20, 20, 30, 0.95),
+    rgba(30, 20, 40, 0.95)
+  );
+  border: 1px solid rgba(186, 104, 200, 0.3);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 
+    0 12px 36px rgba(0, 0, 0, 0.6),
+    0 0 48px rgba(186, 104, 200, 0.25),
+    inset 0 0 28px rgba(255, 255, 255, 0.08);
+  animation: slideUp 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(186, 104, 200, 0.5) transparent;
+  transition: opacity 200ms ease, transform 200ms ease;
+  will-change: opacity, transform;
+}
+
+/* Scrollbar personnalisée pour Webkit (Chrome, Safari) */
+.guest-limit-modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.guest-limit-modal-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.guest-limit-modal-content::-webkit-scrollbar-thumb {
+  background: rgba(186, 104, 200, 0.5);
+  border-radius: 3px;
+}
+
+.guest-limit-modal-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(186, 104, 200, 0.7);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.guest-limit-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 18px;
+  transition: all 0.2s ease;
+}
+
+.guest-limit-modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  transform: scale(1.1);
+}
+
+.guest-limit-modal-icon {
+  font-size: 48px;
+  text-align: center;
+  margin-bottom: 16px;
+  animation: pulse 2s ease infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.guest-limit-modal-title {
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 0 16px 0;
+  background: linear-gradient(135deg, #BA68C8, #9C27B0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.guest-limit-modal-description {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 0 0 12px 0;
+}
+
+.guest-limit-modal-description strong {
+  color: #BA68C8;
+  font-weight: 600;
+}
+
+.guest-limit-modal-cta-text {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 17px;
+  line-height: 1.6;
+  margin: 0 0 24px 0;
+}
+
+.guest-limit-modal-cta-text strong {
+  color: #BA68C8;
+  font-weight: 700;
+}
+
+.guest-limit-modal-benefits {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  border: 1px solid rgba(186, 104, 200, 0.2);
+}
+
+.guest-limit-benefit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 15px;
+}
+
+.benefit-icon {
+  font-size: 20px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(186, 104, 200, 0.2);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.benefit-text {
+  flex: 1;
+}
+
+.guest-limit-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.guest-limit-btn-signup {
+  background: linear-gradient(135deg, #BA68C8, #9C27B0);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 
+    0 4px 12px rgba(186, 104, 200, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+.guest-limit-btn-signup:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 6px 20px rgba(186, 104, 200, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+.guest-limit-btn-signup:active {
+  transform: translateY(0);
+}
+
+.guest-limit-btn-later {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.guest-limit-btn-later:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.guest-limit-modal-pro-hint {
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.guest-limit-modal-pro-hint strong {
+  color: #FFD700;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   📱 RESPONSIVE - Adaptation aux petits écrans
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Tablettes et petits laptops */
+@media (max-width: 768px) {
+  .guest-limit-modal-backdrop {
+    padding: 16px;
+  }
+
+  .guest-limit-modal-content {
+    max-width: 90%;
+  }
+}
+
+/* Smartphones en paysage */
+@media (max-width: 600px) {
+  .guest-limit-modal-backdrop {
+    padding: 12px;
+    align-items: flex-start;
+    overflow-y: auto;
+    padding-top: 40px;
+  }
+
+  .guest-limit-modal-content {
+    padding: 20px 18px;
+    max-width: 100%;
+    margin: auto 0;
+    border-radius: 12px;
+  }
+
+  .guest-limit-modal-title {
+    font-size: 22px;
+    margin-bottom: 12px;
+  }
+
+  .guest-limit-modal-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+
+  .guest-limit-modal-description,
+  .guest-limit-modal-cta-text {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .guest-limit-modal-benefits {
+    padding: 12px;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .guest-limit-benefit {
+    font-size: 13px;
+    gap: 10px;
+  }
+
+  .benefit-icon {
+    font-size: 16px;
+    width: 24px;
+    height: 24px;
+  }
+
+  .guest-limit-modal-actions {
+    gap: 10px;
+  }
+
+  .guest-limit-btn-signup {
+    padding: 12px 20px;
+    font-size: 15px;
+  }
+
+  .guest-limit-btn-later {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+
+  .guest-limit-modal-pro-hint {
+    font-size: 12px;
+    padding-top: 12px;
+  }
+
+  .guest-limit-modal-close {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+    top: 12px;
+    right: 12px;
+  }
+}
+
+/* Très petits smartphones (iPhone SE, etc.) */
+@media (max-width: 400px) {
+  .guest-limit-modal-backdrop {
+    padding: 8px;
+    padding-top: 30px;
+  }
+
+  .guest-limit-modal-content {
+    padding: 16px 14px;
+    border-radius: 10px;
+  }
+
+  .guest-limit-modal-title {
+    font-size: 20px;
+    margin-bottom: 10px;
+  }
+
+  .guest-limit-modal-icon {
+    font-size: 36px;
+    margin-bottom: 10px;
+  }
+
+  .guest-limit-modal-description,
+  .guest-limit-modal-cta-text {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  .guest-limit-modal-benefits {
+    padding: 10px;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .guest-limit-benefit {
+    font-size: 12px;
+    gap: 8px;
+  }
+
+  .benefit-icon {
+    font-size: 14px;
+    width: 22px;
+    height: 22px;
+  }
+
+  .guest-limit-modal-actions {
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .guest-limit-btn-signup {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  .guest-limit-btn-later {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  .guest-limit-modal-pro-hint {
+    font-size: 11px;
+    padding-top: 10px;
+  }
+
+  .guest-limit-modal-close {
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
+    top: 10px;
+    right: 10px;
+  }
+}
+
+/* Mode paysage sur mobile */
+@media (max-height: 600px) and (orientation: landscape) {
+  .guest-limit-modal-backdrop {
+    padding: 8px;
+    padding-top: 20px;
+  }
+
+  .guest-limit-modal-content {
+    padding: 16px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .guest-limit-modal-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
+
+  .guest-limit-modal-title {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+
+  .guest-limit-modal-benefits {
+    padding: 10px;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .guest-limit-benefit {
+    font-size: 12px;
+  }
+
+  .guest-limit-modal-actions {
+    flex-direction: row;
+    gap: 10px;
+  }
+
+  .guest-limit-btn-signup,
+  .guest-limit-btn-later {
+    flex: 1;
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .guest-limit-modal-pro-hint {
+    font-size: 11px;
+    padding-top: 8px;
+  }
+}

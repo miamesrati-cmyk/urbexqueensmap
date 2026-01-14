@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { UQProduct } from "../../services/printful";
 import { fetchProductDetails } from "../../services/printfulDetails";
+import Skeleton from "../Skeleton";
 
 type Props = {
   product: UQProduct;
@@ -76,7 +77,12 @@ export default function ProductDetailsModal({ product, open, onClose }: Props) {
               {product.price.toFixed(2).replace(".", ",")} $ {product.currency}
             </p>
             {loading ? (
-              <p className="product-details-description">Chargement des variantes…</p>
+              <div className="product-details-skeleton">
+                <Skeleton className="panel-loading__line" />
+                <Skeleton className="panel-loading__line" />
+                <Skeleton className="panel-loading__line" />
+                <Skeleton className="panel-loading__line" />
+              </div>
             ) : error ? (
               <p className="product-details-description">{error}</p>
             ) : (

@@ -1,0 +1,529 @@
+/* ═══════════════════════════════════════════════════════════
+   ENHANCED SPOT MODAL - Glassmorphism Premium Design
+   Design cohérent avec le site pour l'ajout de spots
+   ═══════════════════════════════════════════════════════════ */
+
+/* ──────────────────────────────────────────────────────────
+   1. BACKDROP & OVERLAY
+   ────────────────────────────────────────────────────────── */
+
+.spot-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 10, 20, 0.85);
+  backdrop-filter: blur(12px) saturate(120%);
+  z-index: 9998;
+  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────
+   2. MODAL CONTAINER
+   ────────────────────────────────────────────────────────── */
+
+.spot-modal-container {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.spot-modal {
+  background: rgba(11, 10, 20, 0.95);
+  border: 1px solid rgba(186, 104, 200, 0.3);
+  border-radius: 20px;
+  box-shadow: 
+    0 24px 48px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 0 40px rgba(186, 104, 200, 0.15);
+  backdrop-filter: blur(20px) saturate(150%);
+  max-width: 680px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ──────────────────────────────────────────────────────────
+   3. MODAL HEADER - Gradient Premium
+   ────────────────────────────────────────────────────────── */
+
+.spot-modal-header {
+  position: relative;
+  padding: 24px 28px;
+  background: linear-gradient(
+    135deg,
+    rgba(236, 64, 122, 0.15) 0%,
+    rgba(186, 104, 200, 0.15) 50%,
+    rgba(142, 84, 233, 0.15) 100%
+  );
+  border-bottom: 1px solid rgba(186, 104, 200, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.spot-modal-header::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(186, 104, 200, 0.5) 50%,
+    transparent 100%
+  );
+}
+
+.spot-modal-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  letter-spacing: 0.3px;
+  background: linear-gradient(
+    135deg,
+    rgba(236, 64, 122, 1) 0%,
+    rgba(186, 104, 200, 1) 50%,
+    rgba(255, 255, 255, 0.95) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.spot-modal-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.spot-modal-close:hover {
+  background: rgba(236, 64, 122, 0.15);
+  border-color: rgba(236, 64, 122, 0.4);
+  color: #fff;
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(236, 64, 122, 0.3);
+}
+
+/* ──────────────────────────────────────────────────────────
+   4. MODAL BODY - Scrollable Content
+   ────────────────────────────────────────────────────────── */
+
+.spot-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 28px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(186, 104, 200, 0.5) rgba(255, 255, 255, 0.05);
+}
+
+.spot-modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.spot-modal-body::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.spot-modal-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(236, 64, 122, 0.6) 0%,
+    rgba(186, 104, 200, 0.6) 100%
+  );
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.spot-modal-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(236, 64, 122, 0.8) 0%,
+    rgba(186, 104, 200, 0.8) 100%
+  );
+}
+
+/* ──────────────────────────────────────────────────────────
+   5. FORM SECTIONS
+   ────────────────────────────────────────────────────────── */
+
+.spot-form-section {
+  margin-bottom: 32px;
+}
+
+.spot-form-section:last-child {
+  margin-bottom: 0;
+}
+
+.spot-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(186, 104, 200, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 0.5px;
+}
+
+.spot-section-title::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background: linear-gradient(
+    180deg,
+    rgba(236, 64, 122, 1) 0%,
+    rgba(186, 104, 200, 1) 100%
+  );
+  border-radius: 2px;
+}
+
+/* ──────────────────────────────────────────────────────────
+   6. FORM FIELDS - Enhanced Inputs
+   ────────────────────────────────────────────────────────── */
+
+.spot-form-field {
+  margin-bottom: 20px;
+}
+
+.spot-form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 8px;
+  letter-spacing: 0.3px;
+}
+
+.spot-form-label-required::after {
+  content: ' *';
+  color: rgba(236, 64, 122, 0.8);
+}
+
+.spot-form-input,
+.spot-form-textarea,
+.spot-form-select {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(186, 104, 200, 0.25);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+}
+
+.spot-form-input::placeholder,
+.spot-form-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.spot-form-input:focus,
+.spot-form-textarea:focus,
+.spot-form-select:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(186, 104, 200, 0.5);
+  box-shadow: 
+    0 0 0 3px rgba(186, 104, 200, 0.1),
+    0 0 20px rgba(186, 104, 200, 0.15);
+}
+
+.spot-form-textarea {
+  min-height: 120px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.6;
+}
+
+.spot-form-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='rgba(255,255,255,0.7)' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 40px;
+}
+
+/* ──────────────────────────────────────────────────────────
+   7. PHOTO UPLOAD - Premium Grid
+   ────────────────────────────────────────────────────────── */
+
+.spot-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.spot-photo-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px dashed rgba(186, 104, 200, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.spot-photo-item:hover {
+  border-color: rgba(186, 104, 200, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.spot-photo-input-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
+
+.spot-photo-icon {
+  font-size: 28px;
+  opacity: 0.5;
+}
+
+.spot-photo-preview {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.spot-photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.spot-photo-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(236, 64, 122, 0.9);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  opacity: 0.9;
+}
+
+.spot-photo-remove:hover {
+  opacity: 1;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(236, 64, 122, 0.5);
+}
+
+/* ──────────────────────────────────────────────────────────
+   8. MODAL FOOTER - Action Buttons
+   ────────────────────────────────────────────────────────── */
+
+.spot-modal-footer {
+  padding: 20px 28px;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(186, 104, 200, 0.2);
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.spot-btn {
+  padding: 12px 28px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spot-btn-cancel {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.spot-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.spot-btn-submit {
+  background: linear-gradient(
+    135deg,
+    rgba(236, 64, 122, 0.9) 0%,
+    rgba(186, 104, 200, 0.9) 100%
+  );
+  color: #fff;
+  border: 1px solid rgba(236, 64, 122, 0.6);
+  box-shadow: 
+    0 4px 16px rgba(186, 104, 200, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.spot-btn-submit:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(236, 64, 122, 1) 0%,
+    rgba(186, 104, 200, 1) 100%
+  );
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 24px rgba(186, 104, 200, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+}
+
+.spot-btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ──────────────────────────────────────────────────────────
+   9. PRO BADGE & UPSELL
+   ────────────────────────────────────────────────────────── */
+
+.spot-pro-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(
+    135deg,
+    rgba(236, 64, 122, 0.2) 0%,
+    rgba(186, 104, 200, 0.2) 100%
+  );
+  border: 1px solid rgba(236, 64, 122, 0.4);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: 0.5px;
+  animation: proPulse 3s ease-in-out infinite;
+}
+
+@keyframes proPulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(236, 64, 122, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(236, 64, 122, 0.5);
+  }
+}
+
+.spot-upsell-box {
+  margin-top: 16px;
+  padding: 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(236, 64, 122, 0.1) 0%,
+    rgba(186, 104, 200, 0.1) 100%
+  );
+  border: 1px solid rgba(186, 104, 200, 0.3);
+  border-radius: 12px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.6;
+}
+
+/* ──────────────────────────────────────────────────────────
+   10. RESPONSIVE
+   ────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .spot-modal {
+    max-height: 95vh;
+    border-radius: 16px;
+  }
+
+  .spot-modal-header {
+    padding: 20px;
+  }
+
+  .spot-modal-title {
+    font-size: 20px;
+  }
+
+  .spot-modal-body {
+    padding: 20px;
+  }
+
+  .spot-photo-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+  }
+
+  .spot-modal-footer {
+    padding: 16px 20px;
+    flex-direction: column;
+  }
+
+  .spot-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

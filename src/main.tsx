@@ -2,11 +2,92 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./styles.css";
+import "./styles/subtle-enhancements.css";
+import "./styles/premium-header.css";
+import "./styles/enhanced-header.css";
+import "./styles/dm-instagram-style.css";
+import "./styles/enhanced-pro-page.css";
+import "./styles/pro-gaming.css";
+import "./styles/enhanced-mapbox-controls.css";
+import "./styles/enhanced-map-ui.css";
+import "./styles/menuSpotsStats.css";
+import "./styles/profileMenuFix.css";
+import "./styles/pin-animations.css"; // Pin state change micro-animations
+import "./styles/time-rift.css"; // 🕰️ Time Rift (History PRO feature)
+import "./styles/mapbox-controls-override.css"; // OVERRIDE FORCÉ EN DERNIER
+// Mapbox CSS importé globalement, mais JS sera lazy-loadé par les composants
 import "mapbox-gl/dist/mapbox-gl.css";
 import "quill/dist/quill.snow.css";
+
+// Filter out non-critical Mapbox warnings and dev noise
+if (typeof console !== 'undefined') {
+  const originalWarn = console.warn;
+  const originalError = console.error;
+  const originalLog = console.log;
+  
+  const shouldSuppress = (message: any): boolean => {
+    if (typeof message !== 'string') return false;
+    
+    // Suppress Mapbox glyph warnings (non-critical, cosmetic only)
+    if (message.includes('glyphs > 65535 not supported')) return true;
+    
+    // Suppress Mapbox style diff warnings (expected when changing styles)
+    if (message.includes('Unable to perform style diff') && message.includes('Rebuilding the style')) return true;
+    
+    // Suppress Chrome performance violations in dev (caused by React DevTools, extensions)
+    if (message.includes('[Violation]') && message.includes('handler took')) return true;
+    
+    // Suppress Mapbox internal rendering errors
+    if (message.includes('continuePlacement') ||
+        message.includes('_updatePlacement') ||
+        (message.includes('Cannot read properties of undefined') && 
+         message.includes('mapbox'))) return true;
+    
+    // Suppress Firestore CORS errors (configuration issue, not app error)
+    if (message.includes('firestore.googleapis.com') && 
+        (message.includes('cors') || message.includes('access control') || message.includes('fetch api'))) {
+      console.info('[UQ] ⚠️ Firestore CORS - Vérifiez Firebase Console → Authentication → Authorized domains → Ajoutez "localhost"');
+      return true;
+    }
+    
+    return false;
+  };
+  
+  console.warn = (...args: any[]) => {
+    if (shouldSuppress(args[0])) return;
+    originalWarn.apply(console, args);
+  };
+  
+  console.error = (...args: any[]) => {
+    if (shouldSuppress(args[0])) return;
+    originalError.apply(console, args);
+  };
+  
+  console.log = (...args: any[]) => {
+    if (shouldSuppress(args[0])) return;
+    originalLog.apply(console, args);
+  };
+}
+
+// Import Firestore debug utilities
+import "./utils/firestoreDebug";
+
+// Expose debug utils in dev mode (console access)
+if (import.meta.env.DEV) {
+  import("./utils/debugClusterPrefs").then((m) => {
+    (window as any).debugCluster = m;
+    console.log("[DEBUG] 🛠️ Cluster debug utils available:");
+    console.log("  - window.debugCluster.inspectClusterPrefs()");
+    console.log("  - window.debugCluster.resetClusterPrefs()");
+    console.log("  - window.debugCluster.setClusterPrefs(true/false)");
+    console.log("  - window.debugCluster.clearAllUrbexPrefs()");
+  });
+}
+
 import { CartProvider } from "./contexts/CartContext";
 import { AuthUIProvider } from "./contexts/AuthUIContext";
 import { ProStatusProvider } from "./contexts/ProStatusContext";
+import { ToastProvider } from "./contexts/ToastContext";
 import {
   createReloadGuard,
   isReloadBannerIgnored,
@@ -37,6 +118,7 @@ const SETTINGS_KEY = "urbexqueens_settings_v1";
 const CART_STORAGE_KEY = "urbexqueens_cart";
 const GUEST_SPOT_STORAGE_KEY = "urbex_guestSpotUsage";
 const GUEST_PILL_CLOSE_KEY = "urbex_guestPillClosedAt";
+const SKIN_MODE_STORAGE_KEY = "uq_skin_mode";
 
 const KEEP_KEYS = [
   LEGAL_CONSENT_KEY,
@@ -66,10 +148,20 @@ function installGlobalCrashGuard() {
   if (typeof window === "undefined") return;
 
   window.addEventListener("error", (event) => {
+    const errorMessage = String(event.error?.message || event.message || '');
+    
+    // Suppress Mapbox internal errors that don't affect functionality
+    if (errorMessage.includes('continuePlacement') || 
+        errorMessage.includes('Cannot read properties of undefined') && errorMessage.includes('mapbox')) {
+      // These are internal Mapbox rendering errors that self-recover
+      // Don't log to avoid console spam
+      return;
+    }
+    
     console.error("GLOBAL_ERROR", event.error || event.message);
     (window as any).__UQ_LAST_ERROR__ = {
       type: "error",
-      message: String(event.message),
+      message: errorMessage,
       stack: event.error?.stack,
     };
     captureException(event.error ?? event);
@@ -86,10 +178,44 @@ function installGlobalCrashGuard() {
   });
 }
 
+type SkinMode = "refinement" | "default";
+
+function determineSkinMode(): SkinMode {
+  if (typeof window === "undefined") {
+    return "refinement";
+  }
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("skin");
+  if (requested === "default") {
+    safeLocalStorageSet(SKIN_MODE_STORAGE_KEY, "default");
+    return "default";
+  }
+  if (requested === "refinement") {
+    safeLocalStorageSet(SKIN_MODE_STORAGE_KEY, "refinement");
+    return "refinement";
+  }
+  const stored = window.localStorage.getItem(SKIN_MODE_STORAGE_KEY);
+  if (stored === "default") {
+    return "default";
+  }
+  return "refinement";
+}
+
+function applySkinMode(mode: SkinMode) {
+  if (typeof document === "undefined") return;
+  if (mode === "refinement") {
+    document.body.classList.add("uq-preview-refinement");
+  } else {
+    document.body.classList.remove("uq-preview-refinement");
+  }
+}
+
 installGlobalCrashGuard();
 initQaReloadTrigger();
 initQaAuthHooks();
 applyE2EConsentOverride();
+const currentSkinMode = determineSkinMode();
+applySkinMode(currentSkinMode);
 // DEV: uncomment to force the QA avatar mode locally
 // if (import.meta.env.DEV && typeof document !== "undefined") {
 //   document.documentElement.dataset.qaAvatar = "off";
@@ -142,14 +268,16 @@ if (!cleanStatus.reloaded) {
   }
   ReactDOM.createRoot(document.getElementById("root")! as HTMLElement).render(
       <React.StrictMode>
-        <CartProvider>
-          <ProStatusProvider>
-            <AuthUIProvider>
-              <App />
-              <SecurityLockOverlay />
-            </AuthUIProvider>
-          </ProStatusProvider>
-        </CartProvider>
+        <ToastProvider>
+          <CartProvider>
+            <ProStatusProvider>
+              <AuthUIProvider>
+                <App />
+                <SecurityLockOverlay />
+              </AuthUIProvider>
+            </ProStatusProvider>
+          </CartProvider>
+        </ToastProvider>
       </React.StrictMode>
   );
 }

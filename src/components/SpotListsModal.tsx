@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type KeyboardEvent,
+} from "react";
 import type { Place } from "../services/places";
 import type { UserPlacesMap } from "../services/userPlaces";
 import {
@@ -7,6 +15,8 @@ import {
   type SpotListView,
 } from "../lib/userSpotStats";
 import { SPOT_TYPE_LABELS } from "../services/userProfiles";
+import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import PullToRefreshIndicator from "./ui/PullToRefreshIndicator";
 
 type Props = {
   open: boolean;
@@ -18,6 +28,7 @@ type Props = {
   onSelectPlace: (place: Place) => void;
   onToggleDone: (place: Place) => Promise<void>;
   onToggleSaved: (place: Place) => Promise<void>;
+  onRefresh?: () => Promise<void> | void;
 };
 
 const TAB_CONFIG: { id: SpotListView; label: string; subtitle: string }[] = [
@@ -43,6 +54,7 @@ export default function SpotListsModal({
   onSelectPlace,
   onToggleDone,
   onToggleSaved,
+  onRefresh,
 }: Props) {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const mismatchWarnRef = useRef(false);
@@ -90,6 +102,22 @@ export default function SpotListsModal({
 
   const activeCount = activeCollection.length;
 
+  const handleRefresh = useCallback(async () => {
+    if (!onRefresh) return;
+    await onRefresh();
+  }, [onRefresh]);
+
+  const {
+    attachSurface: attachListSurface,
+    pullDistance: listPullDistance,
+    status: listPullStatus,
+  } = usePullToRefresh({
+    onRefresh: handleRefresh,
+    threshold: 70,
+    minSpinnerTime: 800,
+    disabled: !onRefresh,
+  });
+
   const handleTabClick = (tabId: SpotListView) => {
     if (tabId === activeView) return;
     onViewChange(tabId);
@@ -112,19 +140,37 @@ export default function SpotListsModal({
 
   if (!open) return null;
 
-  const stopPropagation = (event: MouseEvent) => {
-    event.stopPropagation();
+  const handleBackdropClick = (event: MouseEvent) => {
+    if (event.target !== event.currentTarget) return;
+    onClose();
+  };
+
+  const handleBackdropKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      onClose();
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onClose();
+    }
   };
 
   return (
     <div
       className="spot-lists-modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Spots urbex"
-      onClick={onClose}
+      role="button"
+      tabIndex={0}
+      aria-label="Fermer les spots urbex"
+      onClick={handleBackdropClick}
+      onKeyDown={handleBackdropKeyDown}
     >
-      <div className="spot-lists-modal-shell" onClick={stopPropagation}>
+      <div
+        className="spot-lists-modal-shell"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Spots urbex"
+      >
         <header className="spot-lists-modal-header">
           <div>
               <p className="spot-lists-modal-title">
@@ -161,7 +207,11 @@ export default function SpotListsModal({
             </button>
           ))}
         </div>
-        <div className="spot-lists-modal-list">
+        <div className="spot-lists-modal-list" ref={attachListSurface}>
+          <PullToRefreshIndicator
+            pullDistance={listPullDistance}
+            status={listPullStatus}
+          />
           {activeCollection.length === 0 ? (
             <p className="spot-lists-modal-empty">
               {activeView === "done"

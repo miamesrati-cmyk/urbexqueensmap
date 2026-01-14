@@ -4,6 +4,7 @@ import { PageContainer, SectionCard, UrbexButton } from "../components/ui/UrbexU
 import RichTextEditor from "../components/RichTextEditor";
 import { useCurrentUserRole } from "../hooks/useCurrentUserRole";
 import { sanitizeHtml } from "../lib/sanitizeHtml";
+import Skeleton from "../components/Skeleton";
 
 type Props = {
   spotId: string;
@@ -253,7 +254,11 @@ export default function EditHistoryView({ spotId, onBack }: Props) {
     return (
       <PageContainer>
         <SectionCard>
-          <p>Chargement…</p>
+          <div className="panel-loading">
+            <Skeleton className="panel-loading__line" />
+            <Skeleton className="panel-loading__line" />
+            <Skeleton className="panel-loading__line" />
+          </div>
         </SectionCard>
       </PageContainer>
     );

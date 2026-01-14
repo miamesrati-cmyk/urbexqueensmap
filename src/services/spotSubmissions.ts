@@ -1,8 +1,9 @@
 import { db } from "../lib/firebase";
 import {
   collection,
+  deleteField,
   doc,
-  onSnapshot,
+  
   orderBy,
   query,
   serverTimestamp,
@@ -12,6 +13,7 @@ import {
   type Query,
   type Unsubscribe,
 } from "firebase/firestore";
+import { onSnapshot } from "../lib/firestoreHelpers";
 import { v4 as uuid } from "uuid";
 import type { Place } from "./places";
 import { ensureWritesAllowed } from "../lib/securityGuard";
@@ -104,26 +106,73 @@ export async function submitSpotSubmission(input: SpotSubmissionInput) {
     ...input,
     status: "pending" as SpotSubmissionStatus,
     createdAt: serverTimestamp(),
+    lastWriteTime: serverTimestamp(),
   };
   await setDoc(doc(SUBMISSIONS, id), payload);
   return id;
+}
+
+// Map pour tracker les listeners actifs et éviter les doublons
+const activeListeners = new Map<string, Unsubscribe>();
+
+// Fonction pour nettoyer tous les listeners (utile en cas d'erreur)
+export function cleanupAllSpotSubmissionListeners() {
+  console.warn(`[spotSubmissions] Nettoyage de ${activeListeners.size} listeners actifs`);
+  activeListeners.forEach((unsub) => {
+    try {
+      unsub();
+    } catch (error) {
+      console.error("[spotSubmissions] Erreur lors du nettoyage:", error);
+    }
+  });
+  activeListeners.clear();
 }
 
 export function listenSpotSubmissions(
   cb: (items: SpotSubmission[]) => void,
   options?: { status?: SpotSubmissionStatus }
 ): Unsubscribe {
-  let q: Query = query(SUBMISSIONS, orderBy("createdAt", "desc"));
-  if (options?.status && options.status !== "all") {
-    q = query(q, where("status", "==", options.status));
+  // Créer une clé unique pour ce listener
+  const listenerKey = `spotSubmissions_${options?.status ?? "all"}`;
+  
+  // Si un listener avec cette clé existe déjà, le nettoyer d'abord
+  const existingUnsub = activeListeners.get(listenerKey);
+  if (existingUnsub) {
+    console.warn(`[spotSubmissions] Nettoyage d'un listener existant pour ${listenerKey}`);
+    existingUnsub();
+    activeListeners.delete(listenerKey);
   }
-  return onSnapshot(q, (snap) => {
-    const out: SpotSubmission[] = [];
-    snap.forEach((docSnap) => {
-      out.push(mapDocToSubmission(docSnap.id, docSnap.data() as Record<string, any>));
-    });
-    cb(out);
-  });
+  
+  let q: Query;
+  if (options?.status && options.status !== "all") {
+    q = query(SUBMISSIONS, where("status", "==", options.status), orderBy("createdAt", "desc"));
+  } else {
+    q = query(SUBMISSIONS, orderBy("createdAt", "desc"));
+  }
+  
+  const unsub = onSnapshot(
+    q,
+    (snap) => {
+      const out: SpotSubmission[] = [];
+      snap.forEach((docSnap) => {
+        out.push(mapDocToSubmission(docSnap.id, docSnap.data() as Record<string, any>));
+      });
+      cb(out);
+    },
+    (error) => {
+      console.error(`[spotSubmissions] Erreur listener ${listenerKey}:`, error);
+      activeListeners.delete(listenerKey);
+    }
+  );
+  
+  // Stocker le listener actif
+  activeListeners.set(listenerKey, unsub);
+  
+  // Retourner une fonction unsubscribe qui nettoie aussi le Map
+  return () => {
+    unsub();
+    activeListeners.delete(listenerKey);
+  };
 }
 
 export async function updateSpotSubmission(
@@ -132,5 +181,13 @@ export async function updateSpotSubmission(
 ) {
   if (Object.keys(updates).length === 0) return;
   ensureWritesAllowed();
-  await updateDoc(doc(SUBMISSIONS, id), updates);
+  
+  // Convertir les valeurs undefined en deleteField() pour Firestore
+  const firestoreUpdates: Record<string, any> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    firestoreUpdates[key] = value === undefined ? deleteField() : value;
+  }
+  firestoreUpdates.lastWriteTime = serverTimestamp();
+  
+  await updateDoc(doc(SUBMISSIONS, id), firestoreUpdates);
 }

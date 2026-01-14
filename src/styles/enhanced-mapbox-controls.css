@@ -1,0 +1,321 @@
+/* ═══════════════════════════════════════════════════════════
+   ENHANCED MAPBOX CONTROLS
+   Style simple et compact - boutons empilés verticalement
+   ═══════════════════════════════════════════════════════════ */
+
+/* ──────────────────────────────────────────────────────────
+   1. NAVIGATION CONTROLS (Zoom +/-) - Stack vertical simple
+   ────────────────────────────────────────────────────────── */
+.mapboxgl-ctrl-group {
+  background: rgba(11, 10, 20, 0.9) !important;
+  border: 1px solid rgba(186, 104, 200, 0.3) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  backdrop-filter: blur(12px) !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+}
+
+.mapboxgl-ctrl-group:not(:empty) {
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
+}
+
+/* Buttons - empilés simplement */
+.mapboxgl-ctrl-group > button {
+  width: 32px !important;
+  height: 32px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  position: relative;
+  transition: all 0.2s ease !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Premier bouton arrondi en haut */
+.mapboxgl-ctrl-group > button:first-child {
+  border-radius: 10px 10px 0 0 !important;
+}
+
+/* Dernier bouton arrondi en bas */
+.mapboxgl-ctrl-group > button:last-child {
+  border-radius: 0 0 10px 10px !important;
+}
+
+/* Séparateur entre boutons */
+.mapboxgl-ctrl-group > button + button {
+  border-top: 1px solid rgba(186, 104, 200, 0.15) !important;
+  margin-top: 0 !important;
+}
+
+/* Hover simple */
+.mapboxgl-ctrl-group > button:hover {
+  background: rgba(186, 104, 200, 0.15) !important;
+}
+
+.mapboxgl-ctrl-group > button:active {
+  background: rgba(236, 64, 122, 0.2) !important;
+}
+
+/* Icons color */
+.mapboxgl-ctrl-icon {
+  filter: brightness(0) invert(1) !important;
+  opacity: 0.9;
+  transition: opacity 0.3s ease, transform 0.3s ease !important;
+}
+
+.mapboxgl-ctrl-group > button:hover .mapboxgl-ctrl-icon {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* Zoom icons */
+.mapboxgl-ctrl-zoom-in .mapboxgl-ctrl-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='29' height='29' fill='%23ffffff' viewBox='0 0 29 29'%3E%3Cpath d='M14.5 8.5c-.75 0-1.5.75-1.5 1.5v3h-3c-.75 0-1.5.75-1.5 1.5s.75 1.5 1.5 1.5h3v3c0 .75.75 1.5 1.5 1.5s1.5-.75 1.5-1.5v-3h3c.75 0 1.5-.75 1.5-1.5s-.75-1.5-1.5-1.5h-3v-3c0-.75-.75-1.5-1.5-1.5z'/%3E%3C/svg%3E") !important;
+}
+
+.mapboxgl-ctrl-zoom-out .mapboxgl-ctrl-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='29' height='29' fill='%23ffffff' viewBox='0 0 29 29'%3E%3Cpath d='M10.5 13.5h8c.75 0 1.5.75 1.5 1.5s-.75 1.5-1.5 1.5h-8c-.75 0-1.5-.75-1.5-1.5s.75-1.5 1.5-1.5z'/%3E%3C/svg%3E") !important;
+}
+
+/* ──────────────────────────────────────────────────────────
+   2. FULLSCREEN CONTROL - Bouton simple individuel
+   ────────────────────────────────────────────────────────── */
+.mapboxgl-ctrl-fullscreen {
+  background: rgba(11, 10, 20, 0.9) !important;
+  border: 1px solid rgba(186, 104, 200, 0.3) !important;
+  border-radius: 10px !important;
+  backdrop-filter: blur(12px) !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.mapboxgl-ctrl-fullscreen:hover {
+  background: rgba(186, 104, 200, 0.15) !important;
+}
+
+.mapboxgl-ctrl-fullscreen .mapboxgl-ctrl-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='29' height='29' fill='%23ffffff' viewBox='0 0 29 29'%3E%3Cpath d='M24 16v5.5c0 1.75-.75 2.5-2.5 2.5H16v-1l3-1.5-4-5.5 1-1 5.5 4 1.5-3h1zM6 16l1.5 3 5.5-4 1 1-4 5.5 3 1.5v1H7.5C5.75 24 5 23.25 5 21.5V16h1zm7-11v1l-3 1.5 4 5.5-1 1-5.5-4L6 13H5V7.5C5 5.75 5.75 5 7.5 5H13zm11 2.5c0-1.75-.75-2.5-2.5-2.5H16v1l3 1.5-4 5.5 1 1 5.5-4 1.5 3h1V7.5z'/%3E%3C/svg%3E") !important;
+}
+
+/* ──────────────────────────────────────────────────────────
+   3. GEOLOCATE CONTROL - Bouton simple individuel
+   ────────────────────────────────────────────────────────── */
+.mapboxgl-ctrl-geolocate {
+  background: rgba(11, 10, 20, 0.9) !important;
+  border: 1px solid rgba(186, 104, 200, 0.3) !important;
+  border-radius: 10px !important;
+  backdrop-filter: blur(12px) !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.mapboxgl-ctrl-geolocate:hover {
+  background: rgba(186, 104, 200, 0.15) !important;
+}
+
+.mapboxgl-ctrl-geolocate .mapboxgl-ctrl-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='29' height='29' fill='%23ffffff' viewBox='0 0 20 20'%3E%3Cpath d='M10 4C9 4 9 5 9 5v.1A5 5 0 0 0 5.1 9H5s-1 0-1 1 1 1 1 1h.1A5 5 0 0 0 9 14.9v.1s0 1 1 1 1-1 1-1v-.1a5 5 0 0 0 3.9-3.9h.1s1 0 1-1-1-1-1-1h-.1A5 5 0 0 0 11 5.1V5s0-1-1-1zm0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 1 1 0-7z'/%3E%3Ccircle cx='10' cy='10' r='2'/%3E%3C/svg%3E") !important;
+}
+
+/* Active state */
+.mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-active {
+  background: rgba(236, 64, 122, 0.25) !important;
+  border-color: rgba(236, 64, 122, 0.5) !important;
+}
+
+.mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-active .mapboxgl-ctrl-icon {
+  animation: geoPulse 2s ease-in-out infinite;
+}
+
+@keyframes geoPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+/* Background location tracking */
+.mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-background {
+  background: linear-gradient(
+    135deg,
+    rgba(186, 104, 200, 0.2) 0%,
+    rgba(171, 71, 188, 0.2) 100%
+  ) !important;
+}
+
+/* Waiting state */
+.mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-waiting .mapboxgl-ctrl-icon {
+  animation: geoSpin 1s linear infinite;
+}
+
+@keyframes geoSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ──────────────────────────────────────────────────────────
+   4. SCALE CONTROL
+   ────────────────────────────────────────────────────────── */
+.mapboxgl-ctrl-scale {
+  background: linear-gradient(
+    135deg,
+    rgba(25, 12, 41, 0.95) 0%,
+    rgba(18, 8, 30, 0.95) 100%
+  ) !important;
+  border: 1px solid rgba(186, 104, 200, 0.3) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(20px) !important;
+  padding: 4px 8px !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ──────────────────────────────────────────────────────────
+   5. ATTRIBUTION
+   ────────────────────────────────────────────────────────── */
+.mapboxgl-ctrl-attrib {
+  background: linear-gradient(
+    135deg,
+    rgba(25, 12, 41, 0.9) 0%,
+    rgba(18, 8, 30, 0.9) 100%
+  ) !important;
+  border: 1px solid rgba(186, 104, 200, 0.2) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(20px) !important;
+  padding: 4px 8px !important;
+}
+
+.mapboxgl-ctrl-attrib a {
+  color: rgba(186, 104, 200, 0.9) !important;
+  text-decoration: none !important;
+  transition: color 0.3s ease !important;
+}
+
+.mapboxgl-ctrl-attrib a:hover {
+  color: rgba(236, 64, 122, 1) !important;
+}
+
+.mapboxgl-ctrl-attrib-button {
+  background: linear-gradient(
+    135deg,
+    rgba(25, 12, 41, 0.95) 0%,
+    rgba(18, 8, 30, 0.95) 100%
+  ) !important;
+  border: 1px solid rgba(186, 104, 200, 0.3) !important;
+  border-radius: 6px !important;
+}
+
+/* ──────────────────────────────────────────────────────────
+   6. COMPASS (if enabled)
+   ────────────────────────────────────────────────────────── */
+.mapboxgl-ctrl-compass {
+  background: linear-gradient(
+    135deg,
+    rgba(25, 12, 41, 0.95) 0%,
+    rgba(18, 8, 30, 0.95) 100%
+  ) !important;
+  border: 1px solid rgba(186, 104, 200, 0.3) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+.mapboxgl-ctrl-compass:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(236, 64, 122, 0.15) 0%,
+    rgba(186, 104, 200, 0.15) 100%
+  ) !important;
+}
+
+.mapboxgl-ctrl-compass .mapboxgl-ctrl-icon {
+  filter: brightness(0) invert(1) !important;
+}
+
+/* ──────────────────────────────────────────────────────────
+   7. RESPONSIVE - Mobile adjustments
+   ────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .mapboxgl-ctrl-group > button {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  .mapboxgl-ctrl-group {
+    border-radius: 10px !important;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────
+   8. ANIMATIONS & INTERACTIONS
+   ────────────────────────────────────────────────────────── */
+
+/* Glow effect on hover */
+.mapboxgl-ctrl-group > button:hover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 
+    0 0 20px rgba(236, 64, 122, 0.3),
+    inset 0 0 10px rgba(236, 64, 122, 0.1);
+  pointer-events: none;
+  opacity: 0;
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+/* Focus state for accessibility */
+.mapboxgl-ctrl-group > button:focus {
+  outline: 2px solid rgba(236, 64, 122, 0.5) !important;
+  outline-offset: 2px;
+}
+
+/* Disabled state */
+.mapboxgl-ctrl-group > button:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+
+.mapboxgl-ctrl-group > button:disabled:hover {
+  background: transparent !important;
+}
+
+/* ──────────────────────────────────────────────────────────
+   9. SMOOTH TRANSITIONS
+   ────────────────────────────────────────────────────────── */
+.mapboxgl-ctrl-group,
+.mapboxgl-ctrl-group > button,
+.mapboxgl-ctrl-icon {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}

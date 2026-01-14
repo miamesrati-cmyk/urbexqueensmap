@@ -1,0 +1,71 @@
+/* ═══════════════════════════════════════════════════════════════
+   🎮 COMPTEURS DE SPOTS - MENU PROFIL
+   ═══════════════════════════════════════════════════════════════ */
+
+.menu-spots-stats {
+  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 95, 162, 0.08), rgba(138, 43, 226, 0.08));
+  border: 2px solid rgba(255, 95, 162, 0.25);
+  box-shadow:
+    0 0 20px rgba(255, 95, 162, 0.2),
+    inset 0 0 15px rgba(255, 95, 162, 0.05);
+}
+
+.menu-spots-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.menu-spots-stat-item:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 95, 162, 0.15);
+  border-color: rgba(255, 95, 162, 0.4);
+  box-shadow: 0 4px 12px rgba(255, 95, 162, 0.3);
+}
+
+.menu-spots-stat-icon {
+  font-size: 1.5rem;
+  filter: drop-shadow(0 0 8px rgba(255, 95, 162, 0.6));
+  flex-shrink: 0;
+}
+
+.menu-spots-stat-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.menu-spots-stat-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 183, 226, 0.8);
+  margin-bottom: 2px;
+  font-weight: 600;
+}
+
+.menu-spots-stat-value {
+  font-size: 1.3rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #fff, #ffd3e8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 10px rgba(255, 95, 162, 0.5));
+}
+
+@media (max-width: 480px) {
+  .menu-spots-stats {
+    grid-template-columns: 1fr;
+  }
+}

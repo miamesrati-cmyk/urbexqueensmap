@@ -1,0 +1,595 @@
+/* Enhanced Gaming Profile Styles - UrbexQueens */
+/* Optimisé pour éviter les crashes - animations conditionnelles */
+
+/* Variables gaming */
+:root {
+  --profile-glow-primary: #ff0f87;
+  --profile-glow-secondary: #00d9ff;
+  --profile-bg-dark: rgba(5, 5, 15, 0.95);
+  --profile-card-bg: rgba(10, 10, 25, 0.9);
+  --profile-border: rgba(255, 255, 255, 0.08);
+  --profile-neon-pink: #ff5ad3;
+  --profile-neon-cyan: #00f0ff;
+}
+
+/* Container principal SANS effet parallax lourd */
+.uq-profile-page {
+  position: relative;
+  min-height: 100vh;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(255, 15, 135, 0.05) 0%, transparent 50%),
+    var(--profile-bg-dark);
+}
+
+/* Hero Section Gaming - SIMPLIFIÉ */
+.uq-profile-hero {
+  position: relative;
+  padding: 2rem 1.5rem;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 15, 135, 0.03) 0%,
+    transparent 100%
+  );
+  border-bottom: 1px solid rgba(255, 90, 211, 0.15);
+}
+
+/* ANIMATIONS DÉSACTIVÉES (cause crashes Chrome) */
+/* @media (prefers-reduced-motion: no-preference) {
+  .uq-profile-page {
+    animation: profileFadeIn 0.4s ease-out;
+  }
+  
+  @keyframes profileFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+} */
+
+/* Avatar avec effet néon - OPTIMISÉ */
+.uq-profile-avatar-block {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin-bottom: 1rem;
+}
+
+/* Glow STATIQUE - blur DÉSACTIVÉ (cause crashes Chrome) */
+.uq-profile-avatar-block::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  background: linear-gradient(45deg, var(--profile-neon-pink), var(--profile-neon-cyan));
+  border-radius: 50%;
+  opacity: 0.3;
+  /* filter: blur(8px); DÉSACTIVÉ */
+}
+
+/* Animation pulse DÉSACTIVÉE (cause crashes Chrome) */
+/* @media (prefers-reduced-motion: no-preference) {
+  .uq-profile-avatar-block::before {
+    animation: pulse 3s ease-in-out infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.6; }
+  }
+} */
+
+.uq-profile-avatar-block img,
+.uq-profile-avatar-block > div {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 90, 211, 0.5);
+  box-shadow: 0 0 15px rgba(255, 90, 211, 0.3);
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.uq-profile-avatar-block:hover img,
+.uq-profile-avatar-block:hover > div {
+  border-color: rgba(255, 90, 211, 0.7);
+  transform: scale(1.03);
+}
+
+/* Nom avec effet - SIMPLIFIÉ */
+.uq-profile-name {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: linear-gradient(135deg, #fff, var(--profile-neon-pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  position: relative;
+  display: inline-block;
+}
+
+/* Username simple */
+.uq-profile-username {
+  font-family: 'Courier New', monospace;
+  font-size: 0.95rem;
+  color: var(--profile-neon-cyan);
+  letter-spacing: 0.1em;
+}
+
+/* Badge PRO - animation CONDITIONNELLE */
+.uq-profile-pro-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.9rem;
+  background: linear-gradient(135deg, #ff0f87, #ff9f1c);
+  color: #0a0a0a;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  border-radius: 999px;
+  box-shadow: 0 0 15px rgba(255, 15, 135, 0.4);
+}
+
+/* Animation proBadgePulse DÉSACTIVÉE (cause crashes Chrome) */
+/* @media (prefers-reduced-motion: no-preference) {
+  .uq-profile-pro-pill {
+    animation: proBadgePulse 3s ease-in-out infinite;
+  }
+  
+  @keyframes proBadgePulse {
+    0%, 100% { 
+      box-shadow: 0 0 15px rgba(255, 15, 135, 0.4);
+    }
+    50% { 
+      box-shadow: 0 0 20px rgba(255, 15, 135, 0.6);
+    }
+  }
+}
+
+/* Level badge gaming style */
+.uq-profile-rank-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: rgba(10, 10, 25, 0.8);
+  border: 2px solid var(--profile-neon-cyan);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--profile-neon-cyan);
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+  box-shadow: 
+    0 0 15px rgba(0, 240, 255, 0.3),
+    inset 0 0 10px rgba(0, 240, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.uq-profile-rank-pill:hover {
+  border-color: var(--profile-neon-pink);
+  color: var(--profile-neon-pink);
+  text-shadow: 0 0 10px rgba(255, 90, 211, 0.5);
+  box-shadow: 
+    0 0 20px rgba(255, 90, 211, 0.4),
+    inset 0 0 15px rgba(255, 90, 211, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Stats SANS effet holographique lourd */
+.uq-profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.uq-profile-stat-card {
+  position: relative;
+  padding: 1.5rem 1rem;
+  background: var(--profile-card-bg);
+  border: 1px solid var(--profile-border);
+  border-radius: 16px;
+  text-align: center;
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.uq-profile-stat-card:hover {
+  border-color: var(--profile-neon-pink);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  transform: translateY(-3px);
+}
+
+.uq-profile-stat-value {
+  display: block;
+  font-size: 2.5rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--profile-neon-pink), var(--profile-neon-cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.uq-profile-stat-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Buttons SIMPLIFIÉS */
+.uq-profile-btn {
+  position: relative;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border: 2px solid var(--profile-neon-pink);
+  border-radius: 8px;
+  color: var(--profile-neon-pink);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.uq-profile-btn:hover {
+  background: var(--profile-neon-pink);
+  color: #0a0a0a;
+  box-shadow: 0 0 15px rgba(255, 90, 211, 0.4);
+}
+
+.uq-profile-btn--primary {
+  background: linear-gradient(135deg, var(--profile-neon-pink), #ff9f1c);
+  border-color: transparent;
+  color: #0a0a0a;
+  box-shadow: 0 0 15px rgba(255, 90, 211, 0.3);
+}
+
+.uq-profile-btn--primary:hover {
+  box-shadow: 0 0 20px rgba(255, 90, 211, 0.5);
+  transform: translateY(-2px);
+}
+
+.uq-profile-section {
+  margin: 2rem 0;
+  padding: 2rem;
+  background: var(--profile-card-bg);
+  /* backdrop-filter: blur(10px); DÉSACTIVÉ - cause crashes Chrome */
+  border: 1px solid var(--profile-border);
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Animation sectionSlideIn DÉSACTIVÉE (cause crashes Chrome) */
+/* @media (prefers-reduced-motion: no-preference) {
+  .uq-profile-section {
+    animation: sectionSlideIn 0.4s ease-out;
+  }
+  
+  @keyframes sectionSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(15px);
+    }
+    to {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+.uq-profile-section-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #fff;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(255, 90, 211, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.uq-profile-section-title::before {
+  content: '';
+  width: 4px;
+  height: 24px;
+  background: linear-gradient(180deg, var(--profile-neon-pink), var(--profile-neon-cyan));
+  border-radius: 2px;
+  box-shadow: 0 0 10px var(--profile-neon-pink);
+}
+
+/* Grid responsive */
+@media (max-width: 768px) {
+  .uq-profile-hero {
+    padding: 1.5rem 1rem;
+  }
+  
+  .uq-profile-avatar-block {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .uq-profile-name {
+    font-size: 1.5rem;
+  }
+  
+  .uq-profile-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .uq-profile-section {
+    padding: 1.5rem 1rem;
+  }
+}
+
+/* Loading shimmer effect - CONDITIONAL */
+.profile-loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 90, 211, 0.1) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* Animation shimmer DÉSACTIVÉE (cause crashes Chrome) */
+/* @media (prefers-reduced-motion: no-preference) {
+  .profile-loading-shimmer {
+    animation: shimmer 1.5s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+} */
+
+/* Stat Card variations */
+.stat-card--pink .uq-profile-stat-value {
+  background: linear-gradient(135deg, #ff0f87, #ff5ad3);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stat-card--cyan .uq-profile-stat-value {
+  background: linear-gradient(135deg, #00d9ff, #00f0ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stat-card--gold .uq-profile-stat-value {
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.uq-profile-stat-card.is-clickable {
+  cursor: pointer;
+}
+
+.uq-profile-stat-card.is-clickable:hover {
+  transform: translateY(-6px) scale(1.02);
+}
+
+.uq-profile-stat-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 0 10px rgba(255, 90, 211, 0.5));
+}
+
+/* Badge Item enhanced */
+.uq-profile-badge-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(10, 10, 25, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.uq-profile-badge-item.is-unlocked {
+  border-color: rgba(255, 90, 211, 0.3);
+  background: rgba(255, 90, 211, 0.05);
+}
+
+.uq-profile-badge-item.is-locked {
+  opacity: 0.5;
+  filter: grayscale(0.8);
+}
+
+.uq-profile-badge-item:hover {
+  border-color: var(--profile-neon-pink);
+  box-shadow: 0 0 15px rgba(255, 90, 211, 0.2);
+  transform: translateX(4px);
+}
+
+.uq-profile-badge-icon {
+  font-size: 2.5rem;
+  filter: drop-shadow(0 0 8px rgba(255, 90, 211, 0.4));
+}
+
+.uq-profile-badge-title {
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.uq-profile-badge-status {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.uq-profile-badge-status.unlocked {
+  background: rgba(0, 255, 127, 0.2);
+  color: #00ff7f;
+}
+
+.uq-profile-badge-status.locked {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.uq-profile-badge-desc {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.uq-profile-badges-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Achievement Card enhanced */
+.achievement-card {
+  position: relative;
+  padding: 1.5rem;
+  background: rgba(10, 10, 25, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  transition: all 0.4s ease;
+  overflow: hidden;
+}
+
+.achievement-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--profile-neon-pink), var(--profile-neon-cyan));
+  transform: scaleX(0);
+  transition: transform 0.4s ease;
+}
+
+.achievement-card.is-unlocked::before {
+  transform: scaleX(1);
+}
+
+.achievement-card.is-unlocked {
+  border-color: rgba(255, 90, 211, 0.3);
+  box-shadow: 0 0 20px rgba(255, 90, 211, 0.15);
+}
+
+.achievement-card.is-locked {
+  opacity: 0.6;
+  filter: grayscale(0.7);
+}
+
+.achievement-card:hover {
+  border-color: var(--profile-neon-pink);
+  box-shadow: 0 0 25px rgba(255, 90, 211, 0.3);
+  transform: translateY(-4px);
+}
+
+.achievement-card-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  filter: drop-shadow(0 0 12px rgba(255, 90, 211, 0.5));
+}
+
+.achievement-card-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.achievement-card-pro-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.6rem;
+  background: linear-gradient(135deg, #ff0f87, #ff9f1c);
+  color: #0a0a0a;
+  font-size: 0.65rem;
+  font-weight: 800;
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(255, 15, 135, 0.5);
+}
+
+.achievement-card-desc {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0.5rem 0;
+}
+
+.achievement-card-hint {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}
+
+.achievement-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.achievement-card-xp {
+  font-weight: 700;
+  color: var(--profile-neon-cyan);
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+}
+
+.achievement-card-status {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.achievement-card.is-unlocked .achievement-card-status {
+  color: #00ff7f;
+  font-weight: 600;
+}
+
+.profile-achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+/* Scrollbar custom gaming */
+.uq-profile-page::-webkit-scrollbar {
+  width: 8px;
+}
+
+.uq-profile-page::-webkit-scrollbar-track {
+  background: rgba(10, 10, 25, 0.5);
+}
+
+.uq-profile-page::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--profile-neon-pink), var(--profile-neon-cyan));
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(255, 90, 211, 0.5);
+}
+
+.uq-profile-page::-webkit-scrollbar-thumb:hover {
+  box-shadow: 0 0 15px rgba(255, 90, 211, 0.8);
+}

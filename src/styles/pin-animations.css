@@ -1,0 +1,53 @@
+/**
+ * Pin State Change Animations
+ * Micro-animation silencieuse pour feedback immédiat (200-300ms, no loop)
+ */
+
+/* Trigger via class added to .mapboxgl-marker when state changes */
+.mapboxgl-marker.pin-state-changed {
+  animation: pinStateChange 250ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes pinStateChange {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* PRO gem variant - slightly more elegant */
+.mapboxgl-marker.pin-state-changed.pin-pro-gem {
+  animation: pinProGemAppear 300ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes pinProGemAppear {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+    filter: brightness(2) blur(2px);
+  }
+  60% {
+    transform: scale(1.2);
+    filter: brightness(1.5) blur(0px);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    filter: brightness(1) blur(0px);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .mapboxgl-marker.pin-state-changed,
+  .mapboxgl-marker.pin-state-changed.pin-pro-gem {
+    animation: none !important;
+  }
+}

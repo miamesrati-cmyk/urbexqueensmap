@@ -1,0 +1,9 @@
+/* Fix pour le menu profil qui ne fonctionne pas après toggle */
+.profile-menu-panel {
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+}
+
+.profile-menu-panel * {
+  pointer-events: auto !important;
+}

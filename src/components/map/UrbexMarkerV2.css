@@ -1,0 +1,317 @@
+/* ═══════════════════════════════════════════════════════════════ */
+/*           🎬 URBEX MARKER V2 - CINEMATIC "GHOST ECHO"           */
+/* ═══════════════════════════════════════════════════════════════ */
+
+/*
+  Design Philosophy:
+  - Subtlety over spectacle
+  - Architectural silhouettes, not cartoons
+  - Desaturated, film-noir aesthetic
+  - Emergent visibility (fade in as you zoom)
+  - Minimal animation, maximum atmosphere
+*/
+
+.urbex-marker-v2 {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  transform-origin: center center;
+  will-change: transform, opacity;
+  /* Start subtle, emerge on interaction */
+  opacity: 0.7;
+}
+
+/* Hover: subtle lift and glow enhancement */
+.urbex-marker-v2:hover {
+  transform: scale(1.15);
+  opacity: 1;
+}
+
+.urbex-marker-v2:active {
+  transform: scale(0.95);
+}
+
+/* SVG container */
+.urbex-marker-v2__svg {
+  transition: filter 0.4s ease;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+}
+
+.urbex-marker-v2:hover .urbex-marker-v2__svg {
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.8));
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/*                      🌫️ BACKGROUND LAYERS                       */
+/* ═══════════════════════════════════════════════════════════════ */
+
+/* Background circle - creates depth */
+.urbex-marker-v2__bg {
+  transition: all 0.4s ease;
+}
+
+.urbex-marker-v2:hover .urbex-marker-v2__bg {
+  opacity: 0.7;
+  stroke-width: 1;
+}
+
+/* Building silhouette - the core visual */
+.urbex-marker-v2__building {
+  transition: all 0.4s ease;
+  opacity: 0.85;
+}
+
+.urbex-marker-v2:hover .urbex-marker-v2__building {
+  opacity: 1;
+  stroke-width: 1.4;
+}
+
+/* Film grain overlay - adds texture */
+.urbex-marker-v2__grain {
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+/* Ground shadow - adds realism */
+.urbex-marker-v2__shadow {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 6px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.4;
+  transition: opacity 0.4s ease;
+}
+
+.urbex-marker-v2:hover .urbex-marker-v2__shadow {
+  opacity: 0.6;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/*                    ✨ TIER-BASED STYLING                        */
+/* ═══════════════════════════════════════════════════════════════ */
+
+/* COMMON: Subtle, almost invisible until close */
+.urbex-marker-v2--common {
+  opacity: 0.6;
+}
+
+.urbex-marker-v2--common:hover {
+  opacity: 0.9;
+}
+
+/* EPIC: Warm golden glow, suggests importance */
+.urbex-marker-v2--epic {
+  opacity: 0.85;
+}
+
+.urbex-marker-v2--epic .urbex-marker-v2__glow {
+  animation: epicPulse 4s ease-in-out infinite;
+}
+
+.urbex-marker-v2--epic:hover {
+  opacity: 1;
+}
+
+/* GHOST: Ethereal cyan shimmer, ultra-rare */
+.urbex-marker-v2--ghost {
+  opacity: 0.9;
+}
+
+.urbex-marker-v2--ghost .urbex-marker-v2__glow {
+  animation: ghostShimmer 5s ease-in-out infinite;
+}
+
+.urbex-marker-v2--ghost:hover {
+  opacity: 1;
+}
+
+/* Rare markers get subtle ambient glow */
+.urbex-marker-v2--rare .urbex-marker-v2__glow {
+  transition: opacity 0.6s ease;
+}
+
+.urbex-marker-v2--rare:hover .urbex-marker-v2__glow {
+  opacity: 1.5;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/*                    🎭 ANIMATIONS - MINIMAL                       */
+/* ═══════════════════════════════════════════════════════════════ */
+
+/* Epic tier: warm pulse */
+@keyframes epicPulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.08);
+  }
+}
+
+/* Ghost tier: ethereal shimmer */
+@keyframes ghostShimmer {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(1) rotate(0deg);
+  }
+  33% {
+    opacity: 0.6;
+    transform: scale(1.12) rotate(1deg);
+  }
+  66% {
+    opacity: 0.45;
+    transform: scale(1.05) rotate(-1deg);
+  }
+}
+
+/* Pending status: subtle blink */
+@keyframes pendingBlink {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+
+.urbex-marker-v2__pending-dot {
+  animation: pendingBlink 2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/*                        👑 PRO BADGE                              */
+/* ═══════════════════════════════════════════════════════════════ */
+
+.urbex-marker-v2__pro-badge {
+  transition: all 0.3s ease;
+}
+
+.urbex-marker-v2:hover .urbex-marker-v2__pro-badge circle {
+  fill: rgba(255, 215, 0, 1);
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/*                    🎯 ZOOM-BASED ADAPTATION                      */
+/* ═══════════════════════════════════════════════════════════════ */
+
+/*
+  Note: These classes should be applied dynamically based on map zoom level
+  Example: zoom < 10 = distant, 10-13 = normal, > 13 = close
+*/
+
+/* Distant view (zoom < 10): ultra-minimal */
+.urbex-marker-v2--distant {
+  opacity: 0.5;
+}
+
+.urbex-marker-v2--distant .urbex-marker-v2__building {
+  opacity: 0.6;
+  stroke-width: 1;
+}
+
+.urbex-marker-v2--distant:hover {
+  opacity: 0.75;
+}
+
+/* Close view (zoom > 13): full detail */
+.urbex-marker-v2--close {
+  opacity: 0.9;
+}
+
+.urbex-marker-v2--close .urbex-marker-v2__building {
+  opacity: 1;
+  stroke-width: 1.3;
+}
+
+.urbex-marker-v2--close:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/*                    ♿ ACCESSIBILITY                              */
+/* ═══════════════════════════════════════════════════════════════ */
+
+/* Reduced motion: disable all animations */
+@media (prefers-reduced-motion: reduce) {
+  .urbex-marker-v2,
+  .urbex-marker-v2__glow,
+  .urbex-marker-v2__building,
+  .urbex-marker-v2__pending-dot {
+    animation: none !important;
+    transition: opacity 0.2s ease, transform 0.2s ease !important;
+  }
+
+  .urbex-marker-v2:hover {
+    transform: scale(1.08);
+  }
+}
+
+/* Keyboard focus: visible outline */
+.urbex-marker-v2:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 4px;
+  border-radius: 50%;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .urbex-marker-v2__building {
+    stroke-width: 1.5;
+    opacity: 1;
+  }
+
+  .urbex-marker-v2__bg {
+    stroke-width: 1.5;
+    opacity: 0.8;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/*                    📱 RESPONSIVE SIZING                          */
+/* ═══════════════════════════════════════════════════════════════ */
+
+/* Mobile: slightly larger for easier tapping */
+@media (max-width: 768px) {
+  .urbex-marker-v2 {
+    /* Size will be controlled via inline styles, but adjust tap target */
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/*                    🎨 THEME VARIANTS                             */
+/* ═══════════════════════════════════════════════════════════════ */
+
+/* Night Vision mode: increase visibility */
+.night-vision-active .urbex-marker-v2 {
+  opacity: 1;
+}
+
+.night-vision-active .urbex-marker-v2__building {
+  opacity: 1;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+/* Monochrome mode: pure white silhouettes */
+.monochrome-mode .urbex-marker-v2__building {
+  stroke: rgba(255, 255, 255, 0.9);
+}
+
+.monochrome-mode .urbex-marker-v2__bg {
+  stroke: rgba(255, 255, 255, 0.5);
+  fill: rgba(255, 255, 255, 0.05);
+}

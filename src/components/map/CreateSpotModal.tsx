@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import type { Place, SpotTier } from "../../services/places";
+import "../../styles/enhanced-spot-modal.css";
 
 const STORAGE_KEY = "uq-add-spot-draft";
 const DEFAULT_BLUR_RADIUS = 45;
-const MAX_PHOTOS_FREE = 3;
+const MAX_PHOTOS_GUEST = 3;
+const MAX_PHOTOS_MEMBER = 5;
 const MAX_PHOTOS_PRO = 12;
 const RISK_LEVELS = ["faible", "moyen", "élevé"] as const;
 type RiskLevel = (typeof RISK_LEVELS)[number];
@@ -45,6 +47,7 @@ type Props = {
   onClose: () => void;
   onSubmit: (payload: SpotFormPayload) => Promise<string>;
   isPro: boolean;
+  userRole?: "admin" | "pro" | "member" | "guest";
 };
 
 export default function CreateSpotModal({
@@ -53,6 +56,7 @@ export default function CreateSpotModal({
   onClose,
   onSubmit,
   isPro,
+  userRole = "guest",
 }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -73,8 +77,20 @@ export default function CreateSpotModal({
   const [shareMessage, setShareMessage] = useState<string | null>(null);
 
   const isSubmitting = submissionState === "pending";
-  const maxPhotos = isPro ? MAX_PHOTOS_PRO : MAX_PHOTOS_FREE;
-  const hasPhoto = photos.some((value) => value.trim().length > 0);
+  
+  // Déterminer le nombre max de photos selon le statut
+  const maxPhotos = useMemo(() => {
+    if (userRole === "guest") return MAX_PHOTOS_GUEST;
+    if (userRole === "member") return MAX_PHOTOS_MEMBER;
+    return MAX_PHOTOS_PRO; // pro ou admin
+  }, [userRole]);
+  
+  // Déterminer si l'utilisateur a accès aux options avancées
+  const hasAdvancedAccess = userRole === "pro" || userRole === "admin" || isPro;
+  const isMember = userRole === "member" || userRole === "pro" || userRole === "admin";
+  const isGuest = userRole === "guest";
+  
+  // hasPhoto supprimé car photos désormais optionnelles
   const riskLevel = RISK_LEVELS[Math.max(0, Math.min(riskIndex, RISK_LEVELS.length - 1))];
   const xpReward = useMemo(
     () =>
@@ -251,10 +267,6 @@ export default function CreateSpotModal({
       setFormError("Ajoute un titre.");
       return;
     }
-    if (!hasPhoto) {
-      setFormError("Ajoute au moins une photo.");
-      return;
-    }
     setFormError(null);
     setSubmissionState("pending");
     try {
@@ -281,7 +293,7 @@ export default function CreateSpotModal({
       const message =
         error instanceof Error
           ? error.message
-          : "Impossible d’ajouter le spot.";
+          : "Impossible d'ajouter le spot.";
       setFormError(message);
       setSubmissionState("idle");
     }
@@ -290,253 +302,415 @@ export default function CreateSpotModal({
   if (!open || !coords) return null;
 
   return (
-    <div className="map-overlay-form">
-      <div className="map-overlay-form-inner map-add-card map-create-spot-modal">
-        <header className="map-create-spot-header">
-          <div className="map-create-spot-stepper">
-            <span className="map-create-spot-step">1 • Infos</span>
-            <span className="map-create-spot-step map-create-spot-step--active">
-              2 • Preuve
-            </span>
-            <span className="map-create-spot-step">
-              3 • PRO
-            </span>
-          </div>
-          <h3>Ajouter un spot</h3>
-          <p className="map-create-spot-subtitle">
-            Coordonnées : {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-          </p>
-          <p className="map-create-spot-autosave">
-            Brouillon sauvegardé automatiquement.
-          </p>
-        </header>
-        {submissionState === "success" && (
-          <div className="map-add-alert map-add-alert--success map-create-spot-success">
-            <strong>Spot soumis / pending review</strong>
-            <div className="map-create-spot-success-actions">
-              <button
-                type="button"
-                className="map-add-btn map-add-btn-secondary"
-                onClick={handleShare}
-              >
-                Partager
-              </button>
-              {shareMessage && (
-                <span className="map-create-spot-share-msg">{shareMessage}</span>
-              )}
-            </div>
-          </div>
-        )}
-        {formError && (
-          <div className="map-add-alert map-add-alert--error">
-            {formError}
-          </div>
-        )}
-        <form onSubmit={handleSubmit} className="map-create-spot-form">
-          <section className="map-create-spot-section">
-            <label className="map-create-spot-label">
-              Titre
-              <input
-                type="text"
-                className="map-create-spot-input"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                required
-              />
-            </label>
-            <label className="map-create-spot-label">
-              Catégorie
-              <select
-                className="map-create-spot-select"
-                value={category}
-                onChange={(event) =>
-                  setCategory(event.target.value as SpotCategory)
-                }
-              >
-                {CATEGORY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="map-create-spot-label">
-              Description courte
-              <textarea
-                className="map-create-spot-textarea"
-                rows={3}
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-              />
-            </label>
-            <label className="map-create-spot-label">
-              Risque ({riskLevel})
-              <input
-                type="range"
-                min={0}
-                max={RISK_LEVELS.length - 1}
-                value={riskIndex}
-                onChange={(event) => setRiskIndex(Number(event.target.value))}
-              />
-            </label>
-          </section>
-          <section className="map-create-spot-section">
-            <h4>Photos ({Math.min(photos.length, maxPhotos)} / {maxPhotos})</h4>
-            {photos.map((value, index) => (
-              <div key={`photo-${index}`} className="map-create-spot-photo-row">
-                <input
-                  type="url"
-                  value={value}
-                  className="map-create-spot-input"
-                  placeholder="URL d’image"
-                  onChange={(event) => handlePhotoChange(index, event.target.value)}
-                />
-                {photos.length > 1 && (
-                  <button
-                    type="button"
-                    className="map-create-spot-link"
-                    onClick={() => handleRemovePhoto(index)}
-                  >
-                    Supprimer
-                  </button>
-                )}
-              </div>
-            ))}
+    <>
+      <div className="spot-modal-backdrop" onClick={onClose} />
+      <div className="spot-modal-container">
+        <div className="spot-modal">
+          <header className="spot-modal-header">
+            <h3 className="spot-modal-title">
+              ✨ Ajouter un Spot Urbex
+            </h3>
             <button
               type="button"
-              className="map-create-spot-link"
-              onClick={handleAddPhoto}
-              disabled={photos.length >= maxPhotos}
+              className="spot-modal-close"
+              onClick={onClose}
+              aria-label="Fermer"
             >
-              Ajouter une photo
+              ×
             </button>
-          </section>
-          {isPro && (
-            <section className="map-create-spot-section map-create-spot-pro">
-              <div className="map-create-spot-ghost">
-                <label className="map-create-spot-toggle">
-                  <input
-                    type="checkbox"
-                    checked={ghostEnabled}
-                    onChange={(event) => setGhostEnabled(event.target.checked)}
-                  />
-                  Activer le mode Ghost (vidéo privée)
-                </label>
-                {ghostEnabled && (
-                  <label className="map-create-spot-label">
-                    Rayon de confidentialité : {blurRadius} m
-                    <input
-                      type="range"
-                      min={10}
-                      max={200}
-                      step={5}
-                      value={blurRadius}
-                      onChange={(event) =>
-                        setBlurRadius(Number(event.target.value))
-                      }
-                    />
-                  </label>
-                )}
-              </div>
-              <label className="map-create-spot-label">
-                Notes d’accès
-                <textarea
-                  className="map-create-spot-textarea"
-                  rows={2}
-                  value={accessNotes}
-                  onChange={(event) => setAccessNotes(event.target.value)}
-                />
-              </label>
-              <div className="map-create-spot-story">
-                <h4>Story mode</h4>
-                {storySteps.map((step, index) => (
-                  <label
-                    key={`step-${index}`}
-                    className="map-create-spot-label map-create-spot-story-row"
+          </header>
+
+          <div className="spot-modal-body">
+            {submissionState === "success" && (
+              <div className="spot-upsell-box" style={{ marginBottom: '20px', background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)', borderColor: 'rgba(34, 197, 94, 0.3)' }}>
+                <strong style={{ color: 'rgba(34, 197, 94, 1)' }}>✅ Spot soumis avec succès !</strong>
+                <p style={{ fontSize: '13px', marginTop: '8px', opacity: 0.85 }}>
+                  Ton spot est en attente de validation par un admin.
+                </p>
+                <div style={{ marginTop: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    className="spot-btn spot-btn-submit"
+                    onClick={handleShare}
+                    style={{ fontSize: '13px', padding: '8px 16px' }}
                   >
-                    <span>Étape {index + 1}</span>
-                    <textarea
-                      className="map-create-spot-textarea"
-                      rows={2}
-                      value={step}
-                      onChange={(event) =>
-                        handleStoryStepChange(index, event.target.value)
-                      }
-                    />
-                    {storySteps.length > 1 && (
-                      <button
-                        type="button"
-                        className="map-create-spot-link"
-                        onClick={() => handleRemoveStoryStep(index)}
-                      >
-                        Retirer
-                      </button>
-                    )}
-                  </label>
-                ))}
-                <button
-                  type="button"
-                  className="map-create-spot-link"
-                  onClick={handleAddStoryStep}
-                >
-                  Ajouter une étape
-                </button>
-              </div>
-              <div className="map-create-spot-loot">
-                <h4>Loot tags</h4>
-                <div className="map-create-spot-loot-chips">
-                  {lootTags.map((tag) => (
-                    <button
-                      type="button"
-                      key={tag}
-                      className="map-create-spot-tag"
-                      onClick={() => handleRemoveLootTag(tag)}
-                    >
-                      {tag} ×
-                    </button>
-                  ))}
+                    📤 Partager
+                  </button>
+                  {shareMessage && (
+                    <span style={{ fontSize: '12px', color: 'rgba(34, 197, 94, 0.9)' }}>{shareMessage}</span>
+                  )}
                 </div>
-                <div className="map-create-spot-loot-add">
+              </div>
+            )}
+            
+            {formError && (
+              <div className="spot-upsell-box" style={{ marginBottom: '20px', background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%)', borderColor: 'rgba(239, 68, 68, 0.3)' }}>
+                <strong style={{ color: 'rgba(239, 68, 68, 1)' }}>⚠️ {formError}</strong>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="spot-form" id="spot-form-id">
+              {/* Section: Informations de base */}
+              <div className="spot-form-section">
+                <h4 className="spot-section-title">📝 Informations de base</h4>
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '16px' }}>
+                  📍 Coordonnées : {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+                </p>
+                
+                <div className="spot-form-field">
+                  <label className="spot-form-label spot-form-label-required">
+                    Titre du spot
+                  </label>
                   <input
                     type="text"
-                    value={newLootTag}
-                    className="map-create-spot-input"
-                    placeholder="Ajouter un tag"
-                    onChange={(event) => setNewLootTag(event.target.value)}
+                    className="spot-form-input"
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder="Ex: Ancienne école abandonnée..."
+                    required
                   />
-                  <button
-                    type="button"
-                    className="map-create-spot-link"
-                    onClick={handleAddLootTag}
+                </div>
+
+                <div className="spot-form-field">
+                  <label className="spot-form-label spot-form-label-required">
+                    Catégorie
+                  </label>
+                  <select
+                    className="spot-form-select"
+                    value={category}
+                    onChange={(event) =>
+                      setCategory(event.target.value as SpotCategory)
+                    }
                   >
-                    Ajouter
-                  </button>
+                    {CATEGORY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="spot-form-field">
+                  <label className="spot-form-label">
+                    Description courte {isGuest && <span style={{ fontSize: '11px', opacity: 0.6 }}>(optionnel pour invités)</span>}
+                  </label>
+                  <textarea
+                    className="spot-form-textarea"
+                    rows={3}
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                    placeholder={isGuest ? "Description optionnelle..." : "Décris brièvement ce spot urbex..."}
+                  />
+                </div>
+
+                <div className="spot-form-field">
+                  <label className="spot-form-label">
+                    Niveau de risque : <strong style={{ color: 'rgba(236, 64, 122, 1)' }}>{riskLevel}</strong>
+                  </label>
+                  <input
+                    type="range"
+                    className="spot-form-input"
+                    min={0}
+                    max={RISK_LEVELS.length - 1}
+                    value={riskIndex}
+                    onChange={(event) => setRiskIndex(Number(event.target.value))}
+                    style={{ cursor: 'pointer' }}
+                  />
                 </div>
               </div>
-              <div className="map-create-spot-xp">
-                <strong>Récompense XP</strong>
-                <span>+{xpReward} XP pour ce spot</span>
+
+              {/* Section: Photos */}
+              <div className="spot-form-section">
+                <h4 className="spot-section-title">📸 Photos</h4>
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '12px' }}>
+                  {isGuest ? (
+                    <>📸 Jusqu'à {maxPhotos} photos (Inscris-toi pour 5 photos !)</>
+                  ) : isMember && !hasAdvancedAccess ? (
+                    <>📸 Jusqu'à {maxPhotos} photos (PRO = 12 photos)</>
+                  ) : (
+                    <>🏆 PRO : Jusqu'à {maxPhotos} photos</>
+                  )}
+                </p>
+                
+                <div className="spot-photo-grid">
+                  {photos.map((value, index) => (
+                    <div key={`photo-${index}`} className="spot-photo-item">
+                      {value.trim() ? (
+                        <div className="spot-photo-preview">
+                          <img
+                            src={value.trim()}
+                            alt={`Photo ${index + 1}`}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => {
+                              e.currentTarget.style.opacity = '0.3';
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="spot-photo-remove"
+                            onClick={() => handleRemovePhoto(index)}
+                            aria-label="Supprimer"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="spot-photo-input-wrapper" style={{ cursor: 'pointer' }}>
+                          <input
+                            type="url"
+                            value={value}
+                            onChange={(event) => handlePhotoChange(index, event.target.value)}
+                            placeholder="URL d'image"
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              opacity: 0,
+                              cursor: 'pointer',
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <span className="spot-photo-icon">📷</span>
+                          <span style={{ fontSize: '11px' }}>Coller URL</span>
+                        </label>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                
+                {photos.length < maxPhotos && (
+                  <button
+                    type="button"
+                    className="spot-btn spot-btn-cancel"
+                    style={{ marginTop: '12px', fontSize: '13px', width: '100%' }}
+                    onClick={handleAddPhoto}
+                  >
+                    + Ajouter une photo
+                  </button>
+                )}
               </div>
-            </section>
-          )}
-          <div className="map-create-spot-cta">
+
+              {/* Upsell Box pour Guests */}
+              {isGuest && (
+                <div className="spot-upsell-box" style={{ marginBottom: '20px' }}>
+                  <strong style={{ color: 'rgba(255,255,255,0.95)' }}>🎁 Crée un compte gratuit !</strong>
+                  <p style={{ fontSize: '13px', marginTop: '8px', opacity: 0.85 }}>
+                    • 5 photos par spot (au lieu de 3)<br />
+                    • Historique de tes spots<br />
+                    • Notifications des validations<br />
+                    • XP et achievements
+                  </p>
+                  <button
+                    type="button"
+                    className="spot-btn spot-btn-submit"
+                    style={{ marginTop: '12px', fontSize: '13px', width: '100%' }}
+                    onClick={() => window.location.href = '/auth'}
+                  >
+                    ✨ S'inscrire gratuitement
+                  </button>
+                </div>
+              )}
+
+              {/* Upsell Box pour Members */}
+              {isMember && !hasAdvancedAccess && (
+                <div className="spot-upsell-box" style={{ marginBottom: '20px' }}>
+                  <strong style={{ color: 'rgba(255,255,255,0.95)' }}>🏆 Passe PRO pour plus de possibilités !</strong>
+                  <p style={{ fontSize: '13px', marginTop: '8px', opacity: 0.85 }}>
+                    • Jusqu'à 12 photos par spot<br />
+                    • Mode Ghost (coordonnées privées)<br />
+                    • Story Mode avec étapes<br />
+                    • Loot Tags personnalisés<br />
+                    • Bonus XP x2
+                  </p>
+                  <button
+                    type="button"
+                    className="spot-btn spot-btn-submit"
+                    style={{ marginTop: '12px', fontSize: '13px', width: '100%' }}
+                    onClick={() => window.location.href = '/pro'}
+                  >
+                    👑 Voir les plans PRO
+                  </button>
+                </div>
+              )}
+
+              {/* Section: Options PRO */}
+              {hasAdvancedAccess && (
+                <div className="spot-form-section">
+                  <h4 className="spot-section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>🏆 Options PRO</span>
+                    <span className="spot-pro-badge">
+                      ⭐ PRO
+                    </span>
+                  </h4>
+
+                  {/* Ghost Mode */}
+                  <div className="spot-form-field">
+                    <label className="spot-form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={ghostEnabled}
+                        onChange={(event) => setGhostEnabled(event.target.checked)}
+                        style={{ width: 'auto', cursor: 'pointer' }}
+                      />
+                      👻 Mode Ghost (coordonnées privées)
+                    </label>
+                    {ghostEnabled && (
+                      <div style={{ marginTop: '12px', paddingLeft: '24px' }}>
+                        <label className="spot-form-label">
+                          Rayon de confidentialité : <strong>{blurRadius} m</strong>
+                        </label>
+                        <input
+                          type="range"
+                          className="spot-form-input"
+                          min={10}
+                          max={200}
+                          step={5}
+                          value={blurRadius}
+                          onChange={(event) =>
+                            setBlurRadius(Number(event.target.value))
+                          }
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Notes d'accès */}
+                  <div className="spot-form-field">
+                    <label className="spot-form-label">
+                      📝 Notes d'accès
+                    </label>
+                    <textarea
+                      className="spot-form-textarea"
+                      rows={2}
+                      value={accessNotes}
+                      onChange={(event) => setAccessNotes(event.target.value)}
+                      placeholder="Conseils pour accéder au spot..."
+                    />
+                  </div>
+
+                  {/* Story Mode */}
+                  <div className="spot-form-field">
+                    <label className="spot-form-label">
+                      📖 Story Mode (étapes)
+                    </label>
+                    {storySteps.map((step, index) => (
+                      <div
+                        key={`step-${index}`}
+                        style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                            Étape {index + 1}
+                          </span>
+                          {storySteps.length > 1 && (
+                            <button
+                              type="button"
+                              className="spot-btn spot-btn-cancel"
+                              style={{ padding: '4px 12px', fontSize: '11px' }}
+                              onClick={() => handleRemoveStoryStep(index)}
+                            >
+                              Retirer
+                            </button>
+                          )}
+                        </div>
+                        <textarea
+                          className="spot-form-textarea"
+                          rows={2}
+                          value={step}
+                          onChange={(event) =>
+                            handleStoryStepChange(index, event.target.value)
+                          }
+                          placeholder={`Décris l'étape ${index + 1}...`}
+                        />
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="spot-btn spot-btn-cancel"
+                      style={{ fontSize: '13px', width: '100%' }}
+                      onClick={handleAddStoryStep}
+                    >
+                      + Ajouter une étape
+                    </button>
+                  </div>
+
+                  {/* Loot Tags */}
+                  <div className="spot-form-field">
+                    <label className="spot-form-label">
+                      🎁 Loot Tags
+                    </label>
+                    {lootTags.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                        {lootTags.map((tag) => (
+                          <button
+                            type="button"
+                            key={tag}
+                            className="spot-btn spot-btn-submit"
+                            style={{ padding: '6px 12px', fontSize: '12px' }}
+                            onClick={() => handleRemoveLootTag(tag)}
+                          >
+                            {tag} ×
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        value={newLootTag}
+                        className="spot-form-input"
+                        placeholder="Ajouter un tag"
+                        onChange={(event) => setNewLootTag(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            handleAddLootTag();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="spot-btn spot-btn-cancel"
+                        onClick={handleAddLootTag}
+                        style={{ flexShrink: 0 }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* XP Reward */}
+                  <div className="spot-upsell-box">
+                    <strong style={{ color: 'rgba(255,255,255,0.95)' }}>💰 Récompense XP</strong>
+                    <p style={{ margin: '8px 0 0', fontSize: '14px' }}>
+                      +{xpReward} XP pour ce spot
+                    </p>
+                  </div>
+                </div>
+              )}
+            </form>
+          </div>
+
+          <footer className="spot-modal-footer">
             <button
               type="button"
-              className="map-add-btn map-add-btn-secondary"
+              className="spot-btn spot-btn-cancel"
               onClick={onClose}
+              disabled={isSubmitting}
             >
               Annuler
             </button>
             <button
               type="submit"
-              className="map-add-btn map-add-btn-primary"
-              disabled={!title.trim() || isSubmitting || !hasPhoto}
+              form="spot-form-id"
+              className="spot-btn spot-btn-submit"
+              disabled={!title.trim() || isSubmitting}
             >
-              {isSubmitting ? "Création..." : "Créer le spot"}
+              {isSubmitting ? "⏳ Création..." : "✨ Créer le spot"}
             </button>
-          </div>
-        </form>
+          </footer>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

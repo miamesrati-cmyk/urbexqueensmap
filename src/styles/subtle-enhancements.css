@@ -1,0 +1,334 @@
+/* ✨ URBEXQUEENS - SUBTLE ENHANCEMENTS */
+/* Améliorations subtiles et élégantes - Garde votre design actuel */
+
+:root {
+  --uq-transition-smooth: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  --uq-hover-lift: translateY(-2px);
+}
+
+/* ========================================
+   ✨ TOPBAR - Micro-interactions subtiles
+   ======================================== */
+
+/* Logo - Glow doux + letter-spacing */
+.topbar-logo-text {
+  transition: var(--uq-transition-smooth);
+}
+
+.topbar-logo:hover .topbar-logo-text {
+  letter-spacing: 0.28em;
+  filter: drop-shadow(0 0 12px rgba(255, 90, 211, 0.5));
+}
+
+/* Navigation pills - Sweep animation */
+.nav-pill {
+  position: relative;
+  overflow: hidden;
+  transition: var(--uq-transition-smooth);
+}
+
+.nav-pill::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 90, 211, 0.15),
+    transparent
+  );
+  transition: left 0.6s ease;
+}
+
+.nav-pill:hover::before {
+  left: 100%;
+}
+
+.nav-pill:hover {
+  transform: var(--uq-hover-lift);
+  box-shadow: 
+    0 0 15px rgba(255, 90, 211, 0.25),
+    0 8px 24px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 90, 211, 0.4);
+}
+
+.nav-pill.is-active {
+  background: linear-gradient(145deg, rgba(255, 90, 211, 0.18), rgba(122, 93, 255, 0.15));
+  border-color: rgba(255, 90, 211, 0.5);
+  box-shadow: 
+    0 0 25px rgba(255, 90, 211, 0.35),
+    inset 0 0 20px rgba(255, 90, 211, 0.12);
+}
+
+/* Avatar - Scale doux + glow rose */
+.topbar-avatar {
+  transition: var(--uq-transition-smooth);
+  box-shadow: 0 0 0 2px rgba(255, 90, 211, 0.3);
+}
+
+.topbar-avatar:hover {
+  transform: scale(1.08);
+  box-shadow: 
+    0 0 0 3px rgba(255, 90, 211, 0.6),
+    0 0 25px rgba(255, 90, 211, 0.35);
+}
+
+/* Badge PRO - Pulse lumineux doux */
+@keyframes badge-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(255, 90, 211, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(255, 90, 211, 0.6);
+  }
+}
+
+.topbar-user-pro-badge {
+  animation: badge-glow-pulse 3s ease-in-out infinite;
+}
+
+/* ========================================
+   🗺️ MAP - Visual refinements
+   ======================================== */
+
+/* Search bar - Focus enhancement */
+.map-search-input {
+  transition: var(--uq-transition-smooth);
+}
+
+.map-search-input:focus {
+  transform: scale(1.02);
+  box-shadow: 
+    0 0 30px rgba(255, 90, 211, 0.3),
+    0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Floating panels - Smooth entrance */
+@keyframes panel-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.uq-overlay-left,
+.uq-overlay-right {
+  animation: panel-slide-in 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Scrollbar élégant - Gradient rose */
+.uq-overlay-left::-webkit-scrollbar,
+.uq-overlay-right::-webkit-scrollbar {
+  width: 6px;
+}
+
+.uq-overlay-left::-webkit-scrollbar-track,
+.uq-overlay-right::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.uq-overlay-left::-webkit-scrollbar-thumb,
+.uq-overlay-right::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--accent), rgba(255, 90, 211, 0.5));
+  border-radius: 10px;
+  transition: background 0.3s ease;
+}
+
+.uq-overlay-left::-webkit-scrollbar-thumb:hover,
+.uq-overlay-right::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* ========================================
+   🎴 CARDS - Enhanced depth
+   ======================================== */
+
+.feed-card,
+.spot-card,
+.uq-card {
+  transition: var(--uq-transition-smooth);
+}
+
+.feed-card:hover,
+.spot-card:hover,
+.uq-card:hover {
+  transform: var(--uq-hover-lift);
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.5),
+    0 0 15px rgba(255, 90, 211, 0.25);
+}
+
+/* ========================================
+   🔘 BUTTONS - Ripple effect
+   ======================================== */
+
+.btn-primary,
+.uq-btn-primary {
+  position: relative;
+  overflow: hidden;
+  transition: var(--uq-transition-smooth);
+}
+
+.btn-primary::after,
+.uq-btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease, height 0.6s ease;
+}
+
+.btn-primary:hover::after,
+.uq-btn-primary:hover::after {
+  width: 300px;
+  height: 300px;
+}
+
+.btn-primary:hover,
+.uq-btn-primary:hover {
+  box-shadow: 0 0 25px rgba(255, 90, 211, 0.35);
+  transform: var(--uq-hover-lift);
+}
+
+/* ========================================
+   📱 MODAL - Smooth appearance
+   ======================================== */
+
+@keyframes modal-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-content,
+.uq-modal-content {
+  animation: modal-appear 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========================================
+   ⚡ LOADING - Elegant spinner
+   ======================================== */
+
+@keyframes spinner-elegant {
+  0% {
+    transform: rotate(0deg);
+    border-top-color: var(--accent);
+  }
+  50% {
+    border-top-color: rgba(255, 90, 211, 0.4);
+  }
+  100% {
+    transform: rotate(360deg);
+    border-top-color: var(--accent);
+  }
+}
+
+.spinner,
+.loading-spinner {
+  animation: spinner-elegant 1s ease-in-out infinite;
+}
+
+/* ========================================
+   🎨 TEXTURE - Grain très subtil
+   ======================================== */
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.02;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.5'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+/* ========================================
+   🌟 FOCUS STATES - Accessibility
+   ======================================== */
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 4px rgba(255, 90, 211, 0.2);
+}
+
+/* ========================================
+   📐 SMOOTH SCROLL
+   ======================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ========================================
+   📱 RESPONSIVE - Mobile optimizations
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Réduit les effets sur mobile pour performance */
+  .nav-pill:hover,
+  .feed-card:hover,
+  .spot-card:hover,
+  .uq-card:hover {
+    transform: none;
+  }
+  
+  /* Touch feedback */
+  .nav-pill:active,
+  .btn-primary:active,
+  .topbar-avatar:active {
+    transform: scale(0.98);
+  }
+}
+
+/* ========================================
+   ⚡ PERFORMANCE
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  body::before {
+    display: none;
+  }
+}
+
+/* GPU acceleration pour smooth animations */
+.topbar,
+.nav-pill,
+.feed-card,
+.spot-card,
+.uq-card,
+.modal-content {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}

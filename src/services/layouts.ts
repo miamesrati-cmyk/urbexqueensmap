@@ -1,5 +1,6 @@
 import { db } from "../lib/firebase";
-import { doc, onSnapshot, serverTimestamp, setDoc, type Timestamp } from "firebase/firestore";
+import { doc, serverTimestamp, setDoc, type Timestamp } from "firebase/firestore";
+import { onSnapshot } from "../lib/firestoreHelpers";
 
 type MapLayoutZoneKey = "top" | "left" | "right" | "bottomRight" | "floating";
 

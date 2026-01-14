@@ -66,9 +66,7 @@ import {
   type ProfileViewSection,
 } from "./lib/profileViews";
 import { makeStormLogger } from "./utils/stormLogger";
-type AppGlobalWithProcessEnv = typeof globalThis & {
-  process?: { env?: { NODE_ENV?: string } };
-};
+
 const SpotPage = lazy(() => import("./pages/SpotPage"));
 const ProfilePage = lazy(() => import("./components/ProfilePage"));
 const ProfileHandlePage = lazy(() => import("./components/ProfileHandlePage"));
@@ -80,12 +78,14 @@ const PaymentPolicy = lazy(() => import("./pages/PaymentPolicy"));
 const LegalClause = lazy(() => import("./pages/LegalClause"));
 const LegalDisclaimer = lazy(() => import("./components/LegalDisclaimer"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
-const ProLandingPage = lazy(() => import("./pages/ProLandingPage"));
+const ProLandingPage = lazy(() => import("./pages/ProLandingPageGaming"));
 const ProReturnPage = lazy(() => import("./pages/ProReturnPage"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const EditHistoryView = lazy(() => import("./pages/EditHistoryView"));
 const ShopPage = lazy(() => import("./pages/ShopPage"));
 const DarkEntryGame = lazy(() => import("./pages/DarkEntryGame"));
+const RefinementStyleDemo = lazy(() => import("./pages/RefinementStyleDemo"));
+const MarkerDemoPage = lazy(() => import("./pages/MarkerDemoPage"));
 
 function AdminRoute({ children }: { children: ReactNode }) {
   const { user, isLoading, isAdmin, isAdminLoading } = useCurrentUserRole();
@@ -262,6 +262,8 @@ type AppRoute =
   | { kind: "settings" }
   | { kind: "shop" }
   | { kind: "game" }
+  | { kind: "refinementDemo" }
+  | { kind: "markerDemo" }
   | { kind: "admin"; page?: AdminPageKey; initialPlaceId?: string | null; selectedOrderId?: string | null }
   | { kind: "editHistory"; id: string }
   | { kind: "pro" }
@@ -355,6 +357,12 @@ function resolveRouteFromLocation(pathname: string, search: string): AppRoute {
   }
   if (isGameRoutePath(normalizedPath)) {
     return { kind: "game" };
+  }
+  if (normalizedPath === "/refinement-demo") {
+    return { kind: "refinementDemo" };
+  }
+  if (normalizedPath === "/marker-demo") {
+    return { kind: "markerDemo" };
   }
 
   return { kind: "map" };
@@ -867,11 +875,7 @@ export default function App() {
     useAdminUiConfigRuntime();
   const adminUiConfig = adminUiConfigFromHook ?? DEFAULT_ADMIN_UI_CONFIG;
   const { proLoading, proSource, proStatus } = useProStatus();
-  const runtimeNodeEnv =
-    (globalThis as AppGlobalWithProcessEnv).process?.env?.NODE_ENV;
-  const showProDebugBadge =
-    Boolean(import.meta.env.DEV) ||
-    (runtimeNodeEnv !== undefined && runtimeNodeEnv !== "production");
+  const showProDebugBadge = false; // Désactivé - info maintenant dans le panel admin
 
   useEffect(() => {
     const root = document.documentElement;
@@ -1245,8 +1249,12 @@ export default function App() {
 
   const [hasLegalConsent, setHasLegalConsent] = useState<boolean>(() => {
     try {
-      return localStorage.getItem(LEGAL_CONSENT_KEY) === "accepted";
-    } catch {
+      const stored = localStorage.getItem(LEGAL_CONSENT_KEY);
+      const hasConsent = stored === "accepted";
+      console.log("[APP] Legal consent check:", { stored, hasConsent });
+      return hasConsent;
+    } catch (err) {
+      console.error("[APP] Legal consent localStorage error:", err);
       return false;
     }
   });
@@ -1269,10 +1277,39 @@ export default function App() {
       setRoute(next);
     }
 
+    type UrbexNavDetail = { path?: string };
+    type UrbexNavEvent = CustomEvent<UrbexNavDetail>;
+
     function handleNav(e: Event) {
-      const detail = (e as CustomEvent<{ path: string }>).detail;
-      if (!detail?.path) return;
-      window.history.pushState({}, "", detail.path);
+      const { path } = (e as UrbexNavEvent).detail ?? {};
+      if (!path) return;
+
+      // Normalize path (handles absolute URLs, converts to pathname+search+hash)
+      const normalizedPath = (() => {
+        try {
+          const url = new URL(path, window.location.origin);
+          return url.pathname + url.search + url.hash;
+        } catch {
+          return path;
+        }
+      })();
+
+      // Guard: prevent duplicate navigation (reload loop protection)
+      const currentPath =
+        window.location.pathname + window.location.search + window.location.hash;
+
+      if (currentPath === normalizedPath) {
+        if (import.meta.env.DEV) {
+          console.log("[urbex-nav] Ignored duplicate navigation to:", normalizedPath);
+        }
+        return;
+      }
+
+      if (import.meta.env.DEV) {
+        console.log("[urbex-nav] Navigating to:", normalizedPath);
+      }
+
+      window.history.pushState({}, "", normalizedPath);
       syncRouteFromLocation();
     }
 
@@ -1302,24 +1339,7 @@ export default function App() {
     [logRouteStorm]
   );
 
-  const handleHeaderProClick = useCallback(
-    async (event?: ReactMouseEvent<HTMLButtonElement>) => {
-      event?.preventDefault();
-      console.info("[analytics] pro_cta_click", { location: "header" });
-      if (!user) {
-        await requireAuth({
-          mode: "login",
-          reason: "Connecte-toi pour débloquer PRO",
-          redirectTo: "/pro",
-        });
-        return;
-      }
-      if (!isPro) {
-        goTo("/pro");
-      }
-    },
-    [goTo, isPro, requireAuth, user]
-  );
+  // handleHeaderProClick supprimé - non utilisé dans le composant
 
   const handleDmClick = useCallback(async () => {
     if (!isGuest) {
@@ -1742,12 +1762,64 @@ export default function App() {
   }, [authOpen, resetBodyLocks]);
 
   function handleAcceptLegalConsent() {
+    console.log("[APP] Accepting legal consent...");
     try {
       localStorage.setItem(LEGAL_CONSENT_KEY, "accepted");
-    } catch {
+      console.log("[APP] Legal consent saved to localStorage");
+    } catch (err) {
+      console.error("[APP] Failed to save legal consent:", err);
       // ignore storage issues but still unlock UI
     }
     setHasLegalConsent(true);
+    console.log("[APP] Legal consent state updated to true");
+  }
+
+  if (route.kind === "refinementDemo") {
+    return (
+      <Suspense
+        fallback={
+          <div
+            style={{
+              minHeight: "100vh",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#03030a",
+              color: "#fff",
+              fontFamily: "Inter, sans-serif",
+            }}
+          >
+            Chargement du refinement demo...
+          </div>
+        }
+      >
+        <RefinementStyleDemo />
+      </Suspense>
+    );
+  }
+
+  if (route.kind === "markerDemo") {
+    return (
+      <Suspense
+        fallback={
+          <div
+            style={{
+              minHeight: "100vh",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#f5f5f5",
+              color: "#333",
+              fontFamily: "Inter, sans-serif",
+            }}
+          >
+            Chargement des markers urbex...
+          </div>
+        }
+      >
+        <MarkerDemoPage />
+      </Suspense>
+    );
   }
 
   return (
@@ -1815,20 +1887,6 @@ export default function App() {
             >
               Espace Jeux
             </button>
-            <button
-              type="button"
-              className={`nav-pill ${nightVisionActive ? "is-active" : ""}`}
-              onClick={() => {
-                if (!isPro) {
-                  goTo("/pro");
-                  return;
-                }
-                setNightVisionActive((prev) => !prev);
-              }}
-              aria-disabled={!isPro}
-            >
-              Night Vision
-            </button>
           </nav>
         </div>
 
@@ -1869,17 +1927,6 @@ export default function App() {
               {proLoading ? "true" : "false"} | source: {proSource} | proStatus:{" "}
               {proStatus}
             </div>
-          )}
-          {isPro ? (
-            <span className="topbar-pro-pill topbar-pro-pill--active">PRO ✅</span>
-          ) : (
-            <button
-              type="button"
-              className="topbar-auth-pill topbar-auth-pill--cta topbar-pro-pill"
-              onClick={handleHeaderProClick}
-            >
-              Débloquer PRO
-            </button>
           )}
           <UserMenuRoot
             user={memoizedUser}
@@ -1931,7 +1978,12 @@ export default function App() {
           {route.kind === "proReturn" && (
             <ProReturnPage status={route.status} sessionId={route.sessionId} />
           )}
-          {route.kind === "pro" && <ProLandingPage />}
+          {route.kind === "pro" && (
+            <ProLandingPage 
+              nightVisionActive={nightVisionActive}
+              onToggleNightVision={() => setNightVisionActive((prev) => !prev)}
+            />
+          )}
           {route.kind === "proReturn" && (
             <ProReturnPage
               status={route.status}

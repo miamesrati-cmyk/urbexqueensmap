@@ -1,0 +1,331 @@
+/* ==========================================================================
+   Profile Hero Section - Enhanced Layout
+   Section hero optimisée et visuellement impactante
+   ========================================================================== */
+
+/* Réduction de l'espace vide et meilleur alignement */
+.uq-profile-hero {
+  padding: 1.5rem 1rem !important;
+  margin-bottom: 2rem;
+}
+
+.uq-profile-hero-inner {
+  max-width: 100%;
+  margin: 0 auto;
+  gap: 1rem !important;
+}
+
+/* Banner plus compact */
+.uq-profile-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 140px !important; /* Réduit de ~200px */
+  background: linear-gradient(
+    135deg,
+    rgba(10, 5, 20, 0.95),
+    rgba(20, 10, 35, 0.9)
+  );
+  border-radius: 20px 20px 0 0;
+  overflow: hidden;
+}
+
+.uq-profile-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(circle at 30% 40%, rgba(255, 90, 211, 0.15), transparent 60%),
+    radial-gradient(circle at 70% 60%, rgba(122, 93, 255, 0.12), transparent 50%);
+}
+
+/* Layout Hero - Plus compact et aligné */
+.uq-profile-hero-top {
+  display: grid !important;
+  grid-template-columns: auto 1fr;
+  gap: 1.25rem !important;
+  align-items: center !important;
+  padding-top: 0.5rem;
+}
+
+/* Avatar repositionné et taille optimisée */
+.uq-profile-avatar-block {
+  width: 100px !important;
+  height: 100px !important;
+  flex-shrink: 0;
+}
+
+/* Info profile - alignement vertical optimisé */
+.uq-profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem !important;
+  justify-content: center;
+  padding-top: 0;
+}
+
+.uq-profile-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem !important;
+  margin-bottom: 0;
+}
+
+/* Nom plus visible */
+.uq-profile-name {
+  font-size: clamp(1.5rem, 3.5vw, 2.2rem) !important;
+  margin: 0 !important;
+  line-height: 1.1 !important;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ffffff, #ff8fb6, #7a5dff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+}
+
+/* Username plus discret mais visible */
+.uq-profile-username {
+  font-size: 0.9rem !important;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.02em;
+  font-family: 'Courier New', monospace;
+  margin: 0 !important;
+}
+
+/* Badge PRO inline avec le nom */
+.uq-profile-pro-pill {
+  display: inline-flex !important;
+  align-items: center;
+  padding: 0.25rem 0.65rem !important;
+  font-size: 0.65rem !important;
+  height: fit-content;
+  margin: 0 !important;
+}
+
+/* Row de niveau plus compact */
+.uq-profile-level-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+.uq-profile-rank-pill {
+  font-size: 0.75rem !important;
+  padding: 0.25rem 0.6rem !important;
+  background: linear-gradient(135deg, rgba(255, 90, 211, 0.2), rgba(122, 93, 255, 0.2));
+  border: 1px solid rgba(255, 90, 211, 0.3);
+  border-radius: 8px;
+  color: #ff8fb6;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.profile-private-chip {
+  font-size: 0.7rem !important;
+  padding: 0.2rem 0.5rem !important;
+  background: rgba(255, 199, 0, 0.15);
+  border: 1px solid rgba(255, 199, 0, 0.3);
+  border-radius: 6px;
+  color: #ffc700;
+}
+
+/* Bio plus visible */
+.uq-profile-info .uq-profile-bio {
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 0.5rem !important;
+  margin-bottom: 0 !important;
+}
+
+/* Section actions - meilleur alignement */
+.uq-profile-action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.uq-profile-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem !important;
+  align-items: center;
+}
+
+/* Boutons plus compacts */
+.uq-profile-hero-actions button,
+.uq-profile-hero-actions a,
+.uq-profile-edit-pill {
+  min-height: 38px !important;
+  padding: 0.5rem 1rem !important;
+  font-size: 0.85rem !important;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.uq-profile-edit-pill {
+  background: linear-gradient(135deg, #ff5ad3, #7a5dff) !important;
+  color: white !important;
+  border: none;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(255, 90, 211, 0.3);
+}
+
+.uq-profile-edit-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(255, 90, 211, 0.4);
+}
+
+/* Stats - grille plus compacte */
+.profile-hero-stats,
+.uq-profile-hero-stats,
+.uq-profile-stat-tiles {
+  margin-top: 1.25rem !important;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: grid;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 0.75rem !important;
+}
+
+/* Followers/Following plus compact */
+.uq-profile-follow-row {
+  display: flex;
+  flex-direction: row !important;
+  gap: 1rem !important;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.uq-profile-follow-row > button,
+.uq-profile-follow-row > span {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.uq-profile-follow-row strong {
+  color: #ff8fb6;
+  font-weight: 700;
+}
+
+/* ========== RESPONSIVE ========== */
+
+/* Tablet */
+@media (min-width: 640px) {
+  .uq-profile-hero {
+    padding: 2rem 1.5rem !important;
+  }
+
+  .uq-profile-banner {
+    height: 160px !important;
+  }
+
+  .uq-profile-avatar-block {
+    width: 120px !important;
+    height: 120px !important;
+  }
+
+  .profile-hero-stats,
+  .uq-profile-hero-stats,
+  .uq-profile-stat-tiles {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 1rem !important;
+  }
+
+  .uq-profile-hero-actions {
+    flex-direction: row;
+    gap: 0.75rem !important;
+  }
+
+  .uq-profile-action-stack {
+    flex-direction: row;
+    gap: 0.75rem;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .uq-profile-hero {
+    padding: 2.5rem 2rem !important;
+    border-radius: 20px;
+    background: linear-gradient(
+      145deg,
+      rgba(10, 12, 24, 0.6),
+      rgba(18, 10, 32, 0.5)
+    );
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 
+      0 20px 50px rgba(0, 0, 0, 0.5),
+      0 0 30px rgba(255, 90, 211, 0.1);
+  }
+
+  .uq-profile-banner {
+    height: 180px !important;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .uq-profile-hero-top {
+    grid-template-columns: auto 1fr auto;
+    gap: 2rem !important;
+  }
+
+  .uq-profile-avatar-block {
+    width: 130px !important;
+    height: 130px !important;
+  }
+
+  .uq-profile-name {
+    font-size: 2.5rem !important;
+  }
+
+  .uq-profile-username {
+    font-size: 1rem !important;
+  }
+
+  .profile-hero-stats,
+  .uq-profile-hero-stats,
+  .uq-profile-stat-tiles {
+    grid-template-columns: repeat(6, 1fr) !important;
+    gap: 1.25rem !important;
+  }
+
+  /* Action stack sur le côté droit */
+  .uq-profile-action-stack {
+    position: static;
+    margin-top: 0;
+  }
+}
+
+/* Large Desktop */
+@media (min-width: 1400px) {
+  .uq-profile-hero-inner {
+    max-width: 1300px;
+  }
+
+  .uq-profile-hero-top {
+    gap: 2.5rem !important;
+  }
+}
+
+/* Amélioration du contraste et de la lisibilité */
+.uq-profile-hero * {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Suppression des espaces vides inutiles */
+.uq-profile-hero > * + * {
+  margin-top: 0;
+}
+
+.uq-profile-info > * + * {
+  margin-top: 0;
+}

@@ -1,8 +1,16 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useCurrentUserRole } from "../hooks/useCurrentUserRole";
+import useInteractionPulse from "../hooks/useInteractionPulse";
 import { useAuthUI } from "../contexts/useAuthUI";
+import { useToast } from "../contexts/useToast";
 import { startProCheckout } from "../services/stripe";
+import { trackTimeRiftPaywallView } from "../utils/conversionTracking";
 import "./ProLandingPage.css";
+
+type ProLandingPageProps = {
+  nightVisionActive?: boolean;
+  onToggleNightVision?: () => void;
+};
 
 const BENEFITS = [
   {
@@ -41,13 +49,32 @@ const BENEFITS = [
   },
 ];
 
-export default function ProLandingPage() {
+export default function ProLandingPage({ 
+  nightVisionActive = false, 
+  onToggleNightVision 
+}: ProLandingPageProps = {}) {
   const { user, isPro } = useCurrentUserRole();
   const { requireAuth } = useAuthUI();
   const [loading, setLoading] = useState(false);
+  const [ctaPulseActive, triggerCtaPulse] = useInteractionPulse(360);
+  const toast = useToast();
+
+  // 📊 CONVERSION TRACKING: Track /pro page view with source (idempotent)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const src = params.get("src"); // null if not present
+    if (src) {
+      // Only track if coming from a campaign (e.g., ?src=history)
+      trackTimeRiftPaywallView(src, user?.uid || null);
+      // Note: trackTimeRiftPaywallView has built-in guards:
+      // - sessionStorage prevents double-counting (StrictMode safe)
+      // - Filters out "direct" traffic (no ?src= param)
+    }
+  }, [user?.uid]);
 
   const handleGoPro = useCallback(async () => {
     console.info("[analytics] pro_cta_click", { location: "pro-page" });
+    triggerCtaPulse();
     if (isPro) return;
     if (!user) {
       const ok = await requireAuth({
@@ -65,11 +92,11 @@ export default function ProLandingPage() {
       window.location.href = url;
     } catch (error) {
       console.error("Erreur PRO checkout", error);
-      alert("Impossible de lancer le paiement PRO pour le moment.");
+      toast.error("Impossible de lancer le paiement PRO pour le moment.");
     } finally {
       setLoading(false);
     }
-  }, [isPro, requireAuth, user]);
+  }, [isPro, requireAuth, user, triggerCtaPulse]);
 
   return (
     <div className="pro-landing-page">
@@ -83,7 +110,7 @@ export default function ProLandingPage() {
         <div className="pro-landing-hero-actions">
           <button
             type="button"
-            className="pro-landing-cta"
+            className={`pro-landing-cta${ctaPulseActive ? " is-pulsing" : ""}`}
             onClick={handleGoPro}
             disabled={loading || isPro}
           >
@@ -120,6 +147,41 @@ export default function ProLandingPage() {
           ))}
         </div>
       </section>
+
+      {isPro && onToggleNightVision && (
+        <section className="pro-landing-settings">
+          <div className="pro-landing-settings-head">
+            <h2>Paramètres PRO</h2>
+            <p>Options exclusives réservées aux membres PRO</p>
+          </div>
+          <div className="pro-landing-settings-card">
+            <div className="pro-setting-item">
+              <div className="pro-setting-info">
+                <span className="pro-setting-icon">🌒</span>
+                <div>
+                  <h3 className="pro-setting-title">Night Vision</h3>
+                  <p className="pro-setting-desc">
+                    Active le mode vision nocturne pour une navigation optimisée dans l'obscurité
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={`pro-toggle-button ${nightVisionActive ? "is-active" : ""}`}
+                onClick={onToggleNightVision}
+                aria-label="Activer/désactiver Night Vision"
+              >
+                <span className="pro-toggle-track">
+                  <span className="pro-toggle-thumb" />
+                </span>
+                <span className="pro-toggle-label">
+                  {nightVisionActive ? "Activé" : "Désactivé"}
+                </span>
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="pro-landing-extra">
         <div className="pro-landing-extra-card">

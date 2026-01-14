@@ -1,7 +1,7 @@
 import {
   collection,
   doc,
-  onSnapshot,
+  
   orderBy,
   query,
   serverTimestamp,
@@ -10,6 +10,7 @@ import {
   addDoc,
   getDocs,
 } from "firebase/firestore";
+import { onSnapshot } from "../lib/firestoreHelpers";
 import { db } from "../lib/firebase";
 import { ensureWritesAllowed } from "../lib/securityGuard";
 import type {

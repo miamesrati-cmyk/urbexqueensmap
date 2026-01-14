@@ -7,7 +7,6 @@ export async function shareLink(url: string, title?: string, text?: string) {
     }
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       await navigator.clipboard.writeText(url);
-      alert("Lien copié 📎");
       return { shared: false, copied: true };
     }
   } catch (err) {

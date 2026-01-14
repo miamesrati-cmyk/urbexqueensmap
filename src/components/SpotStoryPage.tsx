@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listenPlace, type Place, updatePlaceHistory } from "../services/places";
 import {
   listenSpotPhotos,
@@ -15,6 +15,8 @@ import { PageContainer, SectionCard } from "../components/layouts/PageLayout";
 import CommentsSection from "./CommentsSection";
 import { useAuthUI } from "../contexts/useAuthUI";
 import { sanitizeHtml } from "../lib/sanitizeHtml";
+import { SpotPopupSkeleton } from "./skeletons/SkeletonVariants";
+import { useToast } from "../contexts/useToast";
 
 type Props = {
   spotId: string;
@@ -48,6 +50,7 @@ export default function SpotStoryPage({ spotId, onBack }: Props) {
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const { user, isPro, isAdmin } = useCurrentUserRole();
   const { requireAuth } = useAuthUI();
+  const toast = useToast();
   const [adminNotes, setAdminNotes] = useState(place?.adminNotes ?? "");
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesSuccess, setNotesSuccess] = useState<string | null>(null);
@@ -67,6 +70,16 @@ export default function SpotStoryPage({ spotId, onBack }: Props) {
     () => `${window.location.origin}/spot/${spotId}`,
     [spotId]
   );
+  const handleShareSpot = useCallback(async () => {
+    const result = await shareLink(
+      shareUrl,
+      place?.title || "Spot UrbexQueens",
+      "Découvre ce spot urbain sur UrbexQueens"
+    );
+    if (result.copied) {
+      toast.success("Lien copié 📎");
+    }
+  }, [place?.title, shareUrl, toast]);
 
   useEffect(() => {
     const unsubPlace = listenPlace(spotId, (p) => {
@@ -146,7 +159,7 @@ export default function SpotStoryPage({ spotId, onBack }: Props) {
     return (
       <PageContainer>
         <SectionCard>
-          <p>Chargement…</p>
+          <SpotPopupSkeleton />
         </SectionCard>
       </PageContainer>
     );
@@ -278,13 +291,7 @@ export default function SpotStoryPage({ spotId, onBack }: Props) {
               <button
                 className="uq-share-btn"
                 type="button"
-                onClick={() =>
-                  shareLink(
-                    shareUrl,
-                    place.title || "Spot UrbexQueens",
-                    "Découvre ce spot urbain sur UrbexQueens"
-                  )
-                }
+                onClick={handleShareSpot}
               >
                 🔗 Partager
               </button>

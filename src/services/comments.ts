@@ -4,13 +4,14 @@ import {
   arrayUnion,
   collection,
   doc,
-  onSnapshot,
+  
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
   where,
 } from "firebase/firestore";
+import { onSnapshot } from "../lib/firestoreHelpers";
 import { db } from "../lib/firebase";
 import { ensureWritesAllowed } from "../lib/securityGuard";
 
@@ -68,6 +69,7 @@ export async function addComment(input: {
     text: input.text,
     createdAt: serverTimestamp(),
     likedBy: [],
+    lastWriteTime: serverTimestamp(),
   });
 }
 
@@ -76,6 +78,7 @@ export async function toggleCommentLike(commentId: string, userId: string) {
   ensureWritesAllowed();
   await updateDoc(ref, {
     likedBy: arrayUnion(userId),
+    lastWriteTime: serverTimestamp(),
   });
 }
 
@@ -84,5 +87,6 @@ export async function removeCommentLike(commentId: string, userId: string) {
   ensureWritesAllowed();
   await updateDoc(ref, {
     likedBy: arrayRemove(userId),
+    lastWriteTime: serverTimestamp(),
   });
 }

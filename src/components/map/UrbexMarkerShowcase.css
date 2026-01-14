@@ -1,0 +1,229 @@
+/* ═══════════════════════════════════════════════════════════════ */
+/*               🎨 URBEX MARKER SHOWCASE - STYLES                  */
+/* ═══════════════════════════════════════════════════════════════ */
+
+.marker-showcase {
+  padding: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, rgba(236, 64, 122, 0.05), rgba(186, 104, 200, 0.05));
+  min-height: 100vh;
+}
+
+.marker-showcase-title {
+  text-align: center;
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 40px;
+  background: linear-gradient(135deg, #EC407A, #BA68C8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Grid layout for different marker states */
+.marker-showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+.marker-showcase-item {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.marker-showcase-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(236, 64, 122, 0.2);
+}
+
+.marker-showcase-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  background: linear-gradient(135deg, rgba(236, 64, 122, 0.05), rgba(186, 104, 200, 0.05));
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.marker-showcase-info h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #1a1a1a;
+}
+
+.marker-showcase-info p {
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+}
+
+.marker-showcase-info ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.marker-showcase-info ul li {
+  font-size: 13px;
+  color: #888;
+  padding: 4px 0;
+  padding-left: 20px;
+  position: relative;
+}
+
+.marker-showcase-info ul li::before {
+  content: "•";
+  position: absolute;
+  left: 8px;
+  color: #BA68C8;
+  font-weight: bold;
+}
+
+/* Sizes section */
+.marker-showcase-sizes {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.marker-showcase-sizes h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  color: #1a1a1a;
+}
+
+.marker-showcase-sizes-grid {
+  display: flex;
+  gap: 40px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.marker-showcase-sizes-grid > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.marker-showcase-sizes-grid span {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Usage section */
+.marker-showcase-usage,
+.marker-showcase-integration {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.marker-showcase-usage h3,
+.marker-showcase-integration h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #1a1a1a;
+}
+
+.marker-showcase-usage pre,
+.marker-showcase-integration pre {
+  background: #1e1e1e;
+  border-radius: 12px;
+  padding: 20px;
+  overflow-x: auto;
+  margin: 0;
+}
+
+.marker-showcase-usage code,
+.marker-showcase-integration code {
+  font-family: "Fira Code", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #d4d4d4;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .marker-showcase {
+    padding: 20px;
+  }
+
+  .marker-showcase-title {
+    font-size: 24px;
+    margin-bottom: 24px;
+  }
+
+  .marker-showcase-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .marker-showcase-item {
+    padding: 16px;
+  }
+
+  .marker-showcase-sizes-grid {
+    gap: 24px;
+  }
+
+  .marker-showcase-usage pre,
+  .marker-showcase-integration pre {
+    padding: 12px;
+    font-size: 12px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .marker-showcase {
+    background: linear-gradient(135deg, rgba(236, 64, 122, 0.1), rgba(186, 104, 200, 0.1));
+  }
+
+  .marker-showcase-item,
+  .marker-showcase-sizes,
+  .marker-showcase-usage,
+  .marker-showcase-integration {
+    background: rgba(30, 30, 30, 0.95);
+  }
+
+  .marker-showcase-info h3,
+  .marker-showcase-sizes h3,
+  .marker-showcase-usage h3,
+  .marker-showcase-integration h3 {
+    color: #f0f0f0;
+  }
+
+  .marker-showcase-info p {
+    color: #b0b0b0;
+  }
+
+  .marker-showcase-info ul li {
+    color: #999;
+  }
+
+  .marker-showcase-sizes-grid span {
+    color: #b0b0b0;
+  }
+
+  .marker-showcase-preview {
+    background: linear-gradient(135deg, rgba(236, 64, 122, 0.1), rgba(186, 104, 200, 0.1));
+  }
+}

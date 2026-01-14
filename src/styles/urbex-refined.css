@@ -1,0 +1,689 @@
+/* 🏚️ URBEXQUEENS - REFINED URBEX DESIGN SYSTEM */
+/* Design cohérent, élégant et atmosphérique pour toutes les pages */
+
+:root {
+  /* 🎨 Enhanced Variables */
+  --uq-glow-soft: 0 0 12px rgba(255, 90, 211, 0.2);
+  --uq-glow-medium: 0 0 20px rgba(255, 90, 211, 0.3);
+  --uq-glow-strong: 0 0 30px rgba(255, 90, 211, 0.5);
+  --uq-transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  --uq-transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --uq-hover-lift: translateY(-3px);
+  --uq-shadow-card: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --uq-shadow-elevated: 0 16px 48px rgba(0, 0, 0, 0.45);
+  --uq-shadow-float: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+/* ========================================
+   🌌 AMBIENT ATMOSPHERE
+   ======================================== */
+
+/* Texture urbex subtile */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9997;
+  opacity: 0.02;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.6'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+/* Glows ambiants qui flottent */
+.content::before,
+.content::after {
+  content: '';
+  position: fixed;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(120px);
+  z-index: 0;
+  will-change: transform;
+}
+
+.content::before {
+  top: 15%;
+  left: 10%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(255, 90, 211, 0.15), transparent 70%);
+  animation: float-glow-1 25s ease-in-out infinite;
+}
+
+.content::after {
+  bottom: 15%;
+  right: 10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(122, 93, 255, 0.12), transparent 70%);
+  animation: float-glow-2 30s ease-in-out infinite;
+}
+
+@keyframes float-glow-1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.15;
+  }
+  33% {
+    transform: translate(40px, -30px) scale(1.15);
+    opacity: 0.2;
+  }
+  66% {
+    transform: translate(-30px, 40px) scale(0.9);
+    opacity: 0.12;
+  }
+}
+
+@keyframes float-glow-2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.12;
+  }
+  33% {
+    transform: translate(-35px, 35px) scale(0.95);
+    opacity: 0.18;
+  }
+  66% {
+    transform: translate(30px, -40px) scale(1.1);
+    opacity: 0.1;
+  }
+}
+
+/* ========================================
+   🎯 TOPBAR - Enhanced
+   ======================================== */
+
+/* Logo glow effect */
+.topbar-logo-text {
+  position: relative;
+  transition: var(--uq-transition);
+}
+
+.topbar-logo:hover .topbar-logo-text {
+  letter-spacing: 0.28em;
+  filter: drop-shadow(0 0 15px rgba(255, 90, 211, 0.6));
+  transform: scale(1.02);
+}
+
+/* Navigation pills - Enhanced */
+.nav-pill {
+  position: relative;
+  overflow: hidden;
+  transition: var(--uq-transition);
+  backdrop-filter: blur(8px);
+}
+
+.nav-pill::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 90, 211, 0.2),
+    transparent
+  );
+  transition: left 0.6s ease;
+}
+
+.nav-pill:hover::before {
+  left: 100%;
+}
+
+.nav-pill:hover {
+  transform: var(--uq-hover-lift);
+  box-shadow: 
+    var(--uq-glow-medium),
+    0 10px 30px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 90, 211, 0.5);
+  background: linear-gradient(145deg, rgba(255, 90, 211, 0.08), rgba(122, 93, 255, 0.08));
+}
+
+.nav-pill.is-active {
+  background: linear-gradient(145deg, rgba(255, 90, 211, 0.2), rgba(122, 93, 255, 0.18));
+  border-color: rgba(255, 90, 211, 0.6);
+  box-shadow: 
+    var(--uq-glow-strong),
+    inset 0 0 25px rgba(255, 90, 211, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Avatar enhanced */
+.topbar-avatar {
+  transition: var(--uq-transition);
+  box-shadow: 0 0 0 2px rgba(255, 90, 211, 0.4);
+  position: relative;
+}
+
+.topbar-avatar::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+  filter: blur(8px);
+}
+
+.topbar-avatar:hover {
+  transform: scale(1.12);
+  box-shadow: 
+    0 0 0 3px rgba(255, 90, 211, 0.8),
+    var(--uq-glow-strong);
+}
+
+.topbar-avatar:hover::after {
+  opacity: 0.5;
+}
+
+/* Badge PRO - Elegant pulse */
+@keyframes pro-badge-glow {
+  0%, 100% {
+    box-shadow: 
+      0 0 10px rgba(255, 90, 211, 0.5),
+      inset 0 0 8px rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 0 20px rgba(255, 90, 211, 0.8),
+      0 0 40px rgba(255, 90, 211, 0.4),
+      inset 0 0 12px rgba(255, 255, 255, 0.3);
+  }
+}
+
+.topbar-user-pro-badge {
+  animation: pro-badge-glow 3s ease-in-out infinite;
+}
+
+/* ========================================
+   🗺️ MAP - Enhanced Visuals
+   ======================================== */
+
+/* Search bar - Better focus */
+.map-search-input {
+  transition: var(--uq-transition);
+  backdrop-filter: blur(12px);
+}
+
+.map-search-input:focus {
+  transform: scale(1.02);
+  box-shadow: 
+    0 0 30px rgba(255, 90, 211, 0.4),
+    0 12px 40px rgba(0, 0, 0, 0.5);
+  border-color: var(--accent);
+}
+
+/* Floating panels - Enhanced depth */
+.uq-overlay-left,
+.uq-overlay-right {
+  animation: panel-slide-in 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(16px);
+}
+
+@keyframes panel-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scrollbar élégant */
+.uq-overlay-left::-webkit-scrollbar,
+.uq-overlay-right::-webkit-scrollbar {
+  width: 6px;
+}
+
+.uq-overlay-left::-webkit-scrollbar-track,
+.uq-overlay-right::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.uq-overlay-left::-webkit-scrollbar-thumb,
+.uq-overlay-right::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--accent), rgba(255, 90, 211, 0.6));
+  border-radius: 10px;
+  transition: background 0.3s ease;
+  box-shadow: 0 0 6px rgba(255, 90, 211, 0.5);
+}
+
+.uq-overlay-left::-webkit-scrollbar-thumb:hover,
+.uq-overlay-right::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(255, 90, 211, 0.8);
+}
+
+/* ========================================
+   🎴 CARDS - Universal Enhanced Style
+   ======================================== */
+
+.feed-card,
+.spot-card,
+.uq-card,
+.profile-card,
+.shop-item,
+.mission-card {
+  transition: var(--uq-transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.feed-card::before,
+.spot-card::before,
+.uq-card::before,
+.profile-card::before,
+.shop-item::before,
+.mission-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 90, 211, 0),
+    rgba(255, 90, 211, 0.03)
+  );
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.feed-card:hover,
+.spot-card:hover,
+.uq-card:hover,
+.profile-card:hover,
+.shop-item:hover,
+.mission-card:hover {
+  transform: var(--uq-hover-lift);
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.5),
+    var(--uq-glow-medium),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.feed-card:hover::before,
+.spot-card:hover::before,
+.uq-card:hover::before,
+.profile-card:hover::before,
+.shop-item:hover::before,
+.mission-card:hover::before {
+  opacity: 1;
+}
+
+/* ========================================
+   🔘 BUTTONS - Enhanced Interactions
+   ======================================== */
+
+.btn-primary,
+.uq-btn-primary,
+button[type="submit"],
+.cta-button {
+  position: relative;
+  overflow: hidden;
+  transition: var(--uq-transition);
+}
+
+.btn-primary::after,
+.uq-btn-primary::after,
+button[type="submit"]::after,
+.cta-button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease, height 0.6s ease;
+}
+
+.btn-primary:hover::after,
+.uq-btn-primary:hover::after,
+button[type="submit"]:hover::after,
+.cta-button:hover::after {
+  width: 300px;
+  height: 300px;
+}
+
+.btn-primary:hover,
+.uq-btn-primary:hover,
+button[type="submit"]:hover,
+.cta-button:hover {
+  box-shadow: 
+    var(--uq-glow-strong),
+    0 12px 40px rgba(0, 0, 0, 0.5);
+  transform: var(--uq-hover-lift);
+}
+
+.btn-primary:active,
+.uq-btn-primary:active,
+button[type="submit"]:active,
+.cta-button:active {
+  transform: translateY(0);
+}
+
+/* ========================================
+   📱 MODALS - Elegant Appearance
+   ======================================== */
+
+@keyframes modal-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-content,
+.uq-modal-content,
+.modal-dialog,
+.popup-content {
+  animation: modal-appear 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(20px);
+  box-shadow: 
+    var(--uq-shadow-float),
+    var(--uq-glow-medium),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Modal overlay */
+.modal-overlay,
+.uq-modal-overlay {
+  backdrop-filter: blur(8px);
+  animation: overlay-fade 0.3s ease;
+}
+
+@keyframes overlay-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ========================================
+   ⚡ LOADING - Elegant Spinners
+   ======================================== */
+
+@keyframes spinner-glow {
+  0% {
+    transform: rotate(0deg);
+    border-top-color: var(--accent);
+    filter: drop-shadow(0 0 8px rgba(255, 90, 211, 0.6));
+  }
+  50% {
+    border-top-color: rgba(255, 90, 211, 0.5);
+    filter: drop-shadow(0 0 12px rgba(255, 90, 211, 0.8));
+  }
+  100% {
+    transform: rotate(360deg);
+    border-top-color: var(--accent);
+    filter: drop-shadow(0 0 8px rgba(255, 90, 211, 0.6));
+  }
+}
+
+.spinner,
+.loading-spinner,
+.uq-spinner {
+  animation: spinner-glow 1.2s ease-in-out infinite;
+}
+
+/* ========================================
+   📋 LISTS - Enhanced Items
+   ======================================== */
+
+.list-item,
+.feed-item,
+.spot-item,
+.user-item {
+  transition: var(--uq-transition-fast);
+  position: relative;
+}
+
+.list-item::before,
+.feed-item::before,
+.spot-item::before,
+.user-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  box-shadow: 0 0 12px rgba(255, 90, 211, 0.8);
+}
+
+.list-item:hover::before,
+.feed-item:hover::before,
+.spot-item:hover::before,
+.user-item:hover::before {
+  opacity: 1;
+}
+
+.list-item:hover,
+.feed-item:hover,
+.spot-item:hover,
+.user-item:hover {
+  background: rgba(255, 90, 211, 0.06);
+  transform: translateX(4px);
+}
+
+/* ========================================
+   🎨 IMAGES - Enhanced Display
+   ======================================== */
+
+img,
+.uq-image,
+.feed-image,
+.spot-image {
+  transition: var(--uq-transition);
+}
+
+img:hover,
+.uq-image:hover,
+.feed-image:hover,
+.spot-image:hover {
+  transform: scale(1.02);
+  filter: brightness(1.05) contrast(1.05);
+}
+
+/* ========================================
+   🌟 GLOW ACCENTS
+   ======================================== */
+
+.is-active,
+.is-selected,
+.is-highlighted,
+.is-featured {
+  position: relative;
+}
+
+.is-active::after,
+.is-selected::after,
+.is-highlighted::after,
+.is-featured::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 90, 211, 0.25),
+    transparent
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  filter: blur(8px);
+  z-index: -1;
+}
+
+.is-active::after,
+.is-selected::after,
+.is-featured::after {
+  opacity: 1;
+}
+
+/* ========================================
+   🎯 FOCUS STATES - Better Accessibility
+   ======================================== */
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 4px rgba(255, 90, 211, 0.2);
+}
+
+/* ========================================
+   📐 SMOOTH SCROLL
+   ======================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+html:focus-within {
+  scroll-behavior: smooth;
+}
+
+/* ========================================
+   📱 RESPONSIVE - Mobile Optimizations
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Réduit les effets lourds sur mobile */
+  .content::before,
+  .content::after {
+    opacity: 0.08;
+    filter: blur(80px);
+  }
+  
+  .nav-pill:hover,
+  .feed-card:hover,
+  .spot-card:hover,
+  .uq-card:hover {
+    transform: none;
+  }
+  
+  /* Touch feedback */
+  .nav-pill:active,
+  .btn-primary:active,
+  .feed-card:active,
+  .topbar-avatar:active {
+    transform: scale(0.97);
+  }
+}
+
+/* ========================================
+   ⚡ PERFORMANCE
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  body::after,
+  .content::before,
+  .content::after {
+    display: none;
+  }
+}
+
+/* GPU acceleration */
+.topbar,
+.nav-pill,
+.feed-card,
+.spot-card,
+.uq-card,
+.modal-content,
+.btn-primary {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* ========================================
+   🎨 THEME ENHANCEMENTS
+   ======================================== */
+
+/* Améliore les thèmes existants */
+.theme-violet .nav-pill.is-active {
+  box-shadow: 
+    0 0 25px rgba(255, 90, 211, 0.6),
+    inset 0 0 20px rgba(255, 90, 211, 0.15);
+}
+
+.theme-night .nav-pill.is-active {
+  box-shadow: 
+    0 0 25px rgba(255, 143, 182, 0.6),
+    inset 0 0 20px rgba(255, 143, 182, 0.15);
+}
+
+.theme-satellite .nav-pill.is-active {
+  box-shadow: 
+    0 0 25px rgba(47, 255, 211, 0.6),
+    inset 0 0 20px rgba(47, 255, 211, 0.15);
+}
+
+/* ========================================
+   🏚️ URBEX SPECIFIC ELEMENTS
+   ======================================== */
+
+/* Danger/abandoned vibes */
+.danger-level,
+.risk-indicator,
+.abandoned-tag {
+  position: relative;
+  animation: pulse-danger 2s ease-in-out infinite;
+}
+
+@keyframes pulse-danger {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 51, 51, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 51, 51, 0.7);
+  }
+}
+
+/* Spot markers glow */
+.spot-marker,
+.map-marker {
+  filter: drop-shadow(0 0 8px rgba(255, 90, 211, 0.6));
+  transition: var(--uq-transition-fast);
+}
+
+.spot-marker:hover,
+.map-marker:hover {
+  filter: drop-shadow(0 0 16px rgba(255, 90, 211, 0.9));
+  transform: scale(1.15);
+}

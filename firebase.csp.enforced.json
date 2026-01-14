@@ -1,0 +1,113 @@
+{
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      ".firebase"
+    ],
+    "predeploy": [
+      "npm --prefix \"$RESOURCE_DIR\" run build"
+    ]
+  },
+  "hosting": {
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "/assets/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "source": "/index.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          }
+        ]
+      },
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Strict-Transport-Security",
+            "value": "max-age=31536000; includeSubDomains; preload"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "X-Frame-Options",
+            "value": "DENY"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "strict-origin-when-cross-origin"
+          },
+          {
+            "key": "Permissions-Policy",
+            "value": "geolocation=(), microphone=(), camera=(), magnetometer=(), accelerometer=(), gyroscope=(), interest-cohort=(), payment=()"
+          },
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://api.mapbox.com https://events.mapbox.com https://www.gstatic.com https://www.google.com https://www.googletagmanager.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://api.mapbox.com; img-src 'self' data: blob: https://*.mapbox.com https://firebasestorage.googleapis.com; connect-src 'self' https://*.firebase.com https://*.googleapis.com https://api.mapbox.com https://events.mapbox.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.stripe.com; frame-src https://js.stripe.com; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self';"
+          },
+          {
+            "key": "Report-To",
+            "value": "{\"group\":\"csp-report-endpoint\",\"max_age\":31536000,\"endpoints\":[{\"url\":\"/api/csp/report\"}]}"
+          },
+          {
+            "key": "Content-Security-Policy-Report-Only",
+            "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://api.mapbox.com https://events.mapbox.com https://www.gstatic.com https://www.google.com https://www.googletagmanager.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://api.mapbox.com; img-src 'self' data: blob: https://*.mapbox.com https://firebasestorage.googleapis.com; connect-src 'self' https://*.firebase.com https://*.googleapis.com https://api.mapbox.com https://events.mapbox.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.stripe.com; frame-src https://js.stripe.com; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self';"
+          }
+        ]
+      }
+    ],
+    "rewrites": [
+      {
+        "source": "/api/admin/integrations/health",
+        "function": "integrationHealth"
+      },
+      {
+        "source": "/api/stripe/create-pro-checkout-session",
+        "function": "createProCheckoutSession"
+      },
+      {
+        "source": "/api/stripe/verify-pro-session",
+        "function": "verifyProSession"
+      },
+      {
+        "source": "/api/stripe/webhook",
+        "function": "stripeWebhook"
+      },
+      {
+        "source": "/api/csp/report",
+        "function": "cspReport"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

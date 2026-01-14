@@ -9,12 +9,14 @@ import {
 } from "react";
 import { PageContainer, SectionCard, UrbexButton } from "../components/ui/UrbexUI";
 import { AdminLayout, type AdminPageKey } from "../components/admin/AdminLayout";
+import Skeleton from "../components/Skeleton";
 import AdminMapUIPage from "./AdminMapUIPage";
 import ThemeEditorPage from "./admin/ThemeEditorPage";
 import UiConfigPage from "./admin/UiConfigPage";
 import OverlayStudioPage from "./admin/OverlayStudioPage";
 import { listenPlaces, createPlace, type Place } from "../services/places";
 import { useCurrentUserRole } from "../hooks/useCurrentUserRole";
+import { useProStatus, type ProSource } from "../contexts/ProStatusContext";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import {
   addCustomer,
@@ -49,17 +51,24 @@ import { uploadProductImage } from "../services/storage";
 import { httpsCallable } from "firebase/functions";
 import {
   collection,
-  onSnapshot,
+  
   orderBy,
   query,
   type DocumentData,
 } from "firebase/firestore";
+import { onSnapshot } from "../lib/firestoreHelpers";
 import { db, functions as firebaseFunctions } from "../lib/firebase";
 import {
   DEFAULT_ADMIN_UI_CONFIG,
   useAdminUiConfig,
 } from "../hooks/useAdminUiConfig";
+import { useToast } from "../contexts/useToast";
 import type { AdminUiConfig } from "../hooks/useAdminUiConfig";
+import {
+  emitProDebugFlagChange,
+  PRO_DEBUG_STORAGE_KEY,
+  useProDebugFlag,
+} from "../utils/debugFlags";
 
 // Routes validées :
 // - /admin : Tableau de bord admin
@@ -118,6 +127,16 @@ type KpiValues = {
   revenueAnnual: number;
 };
 
+type ProDiagnosticsInfo = {
+  isPro: boolean;
+  loading: boolean;
+  source: ProSource;
+  proStatus: string;
+  uid: string | null;
+  plan: string | null;
+  stripeCustomerId: string | null;
+};
+
 const KPI_DEFINITIONS: Record<keyof KpiValues, string> = {
   publicCount: "Comptage Firestore des spots publics vérifiés (isPublic=true, pas de draft).",
   proCount: "Spots marqués PRO ou réservés aux membres PRO (proOnly / isProOnly) et publiés.",
@@ -150,10 +169,13 @@ export default function AdminDashboard({
   page = "dashboard",
   selectedOrderId = null,
 }: Props) {
-  const { user, isLoading, isAdmin } = useCurrentUserRole();
+  const { user, isLoading, isAdmin, isPro } = useCurrentUserRole();
+  const toast = useToast();
   const { config: adminUiConfig } = useAdminUiConfig();
   const moduleStates =
     adminUiConfig?.modules ?? DEFAULT_ADMIN_UI_CONFIG.modules;
+  const proDebugEnabled = useProDebugFlag();
+  const { profile, proLoading, proSource, proStatus } = useProStatus();
   const [places, setPlaces] = useState<Place[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [products, setProducts] = useState<ShopProduct[]>([]);
@@ -166,6 +188,10 @@ export default function AdminDashboard({
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [processingSubmissionId, setProcessingSubmissionId] = useState<string | null>(null);
+  
+  // Options de modération pour les spots
+  const [spotTier, setSpotTier] = useState<"STANDARD" | "EPIC" | "GHOST">("STANDARD");
+  const [spotIsProOnly, setSpotIsProOnly] = useState(false);
 
   const [placeSearch, setPlaceSearch] = useState("");
   const [placeFilter, setPlaceFilter] = useState<"all" | "public" | "pro">("all");
@@ -183,6 +209,68 @@ export default function AdminDashboard({
   const [kpisError, setKpisError] = useState<string | null>(null);
   const [placesError, setPlacesError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const proDiagnostics = useMemo<ProDiagnosticsInfo>(() => {
+    const uid = user?.uid ?? profile?.uid ?? null;
+    return {
+      isPro,
+      loading: proLoading,
+      source: proSource,
+      proStatus: proStatus ?? "unknown",
+      uid,
+      plan: profile?.plan ?? null,
+      stripeCustomerId: profile?.stripeCustomerId ?? null,
+    };
+  }, [
+    isPro,
+    proLoading,
+    proSource,
+    proStatus,
+    user?.uid,
+    profile?.uid,
+    profile?.plan,
+    profile?.stripeCustomerId,
+  ]);
+  const handleCopyDiagnostics = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      toast.error("Impossible d’accéder au presse-papiers.");
+      return;
+    }
+    const payload = {
+      ...proDiagnostics,
+      debugMode: proDebugEnabled,
+      copiedAt: new Date().toISOString(),
+    };
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      toast.success("Diagnostics copiés");
+    } catch (error) {
+      console.error("Erreur copie diagnostics", error);
+      toast.error("Impossible de copier les diagnostics pour le moment.");
+    }
+  }, [proDiagnostics, proDebugEnabled, toast]);
+  const handleEnableProDebug = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(PRO_DEBUG_STORAGE_KEY, "1");
+      emitProDebugFlagChange();
+      toast.success("Debug PRO activé dans ce navigateur.");
+    } catch (error) {
+      console.error("Erreur activation debug PRO", error);
+      toast.error("Impossible d’activer le debug PRO.");
+    }
+  }, [toast]);
+  const handleDisableProDebug = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.removeItem(PRO_DEBUG_STORAGE_KEY);
+      emitProDebugFlagChange();
+      toast.success("Debug PRO désactivé dans ce navigateur.");
+    } catch (error) {
+      console.error("Erreur désactivation debug PRO", error);
+      toast.error("Impossible de désactiver le debug PRO.");
+    }
+  }, [toast]);
 
   const reportKpiError = useCallback((message: string, error?: unknown) => {
     if (import.meta.env.DEV) {
@@ -217,6 +305,10 @@ export default function AdminDashboard({
     [navigateAdmin]
   );
   const handleViewAllSpots = useCallback(() => navigateAdmin("/admin/places"), [navigateAdmin]);
+  const handleViewSpotSubmissions = useCallback(
+    () => navigateAdmin("/admin/spots-proposes"),
+    [navigateAdmin]
+  );
   const handleViewAllCustomers = useCallback(
     () => navigateAdmin("/admin/users"),
     [navigateAdmin]
@@ -245,6 +337,14 @@ export default function AdminDashboard({
     [setShowIntegrationModal]
   );
   useEffect(() => {
+    // Charger les places uniquement sur les pages qui en ont besoin
+    const needsPlaces = ["dashboard", "places", "histories"].includes(page);
+    if (!needsPlaces) {
+      setPlaces([]);
+      setPlacesLoading(false);
+      return;
+    }
+    
     setPlacesLoading(true);
     setPlacesError(null);
     let ready = false;
@@ -265,9 +365,17 @@ export default function AdminDashboard({
       }
     );
     return () => unsub();
-  }, [refreshKey, reportKpiError]);
+  }, [refreshKey, reportKpiError, page]);
 
   useEffect(() => {
+    // Charger les produits uniquement sur les pages shop
+    const needsProducts = ["dashboard", "shop", "products"].includes(page);
+    if (!needsProducts) {
+      setProducts([]);
+      setProductsLoading(false);
+      return;
+    }
+    
     setProductsLoading(true);
     let ready = false;
     const unsub = listenProducts(
@@ -284,9 +392,17 @@ export default function AdminDashboard({
       }
     );
     return () => unsub();
-  }, [refreshKey, reportKpiError]);
+  }, [refreshKey, reportKpiError, page]);
 
   useEffect(() => {
+    // Charger les commandes uniquement sur les pages shop
+    const needsOrders = ["dashboard", "shop", "orders"].includes(page);
+    if (!needsOrders) {
+      setOrders([]);
+      setOrdersLoading(false);
+      return;
+    }
+    
     setOrdersLoading(true);
     let ready = false;
     const unsub = listenOrders(
@@ -303,9 +419,17 @@ export default function AdminDashboard({
       }
     );
     return () => unsub();
-  }, [refreshKey, reportKpiError]);
+  }, [refreshKey, reportKpiError, page]);
 
   useEffect(() => {
+    // Charger les clients uniquement sur les pages dashboard, shop ou users
+    const needsCustomers = ["dashboard", "shop", "customers", "users"].includes(page);
+    if (!needsCustomers) {
+      setCustomers([]);
+      setCustomersLoading(false);
+      return;
+    }
+    
     setCustomersLoading(true);
     let ready = false;
     const unsub = listenCustomers(
@@ -322,9 +446,16 @@ export default function AdminDashboard({
       }
     );
     return () => unsub();
-  }, [refreshKey, reportKpiError]);
+  }, [refreshKey, reportKpiError, page]);
 
   useEffect(() => {
+    // Charger les intégrations uniquement sur les pages shop
+    const needsIntegrations = ["dashboard", "shop", "products"].includes(page);
+    if (!needsIntegrations) {
+      setIntegrations([]);
+      return;
+    }
+    
     let ready = false;
     const unsub = listenIntegrations(
       (items) => {
@@ -338,9 +469,15 @@ export default function AdminDashboard({
       }
     );
     return () => unsub();
-  }, [refreshKey, reportKpiError]);
+  }, [refreshKey, reportKpiError, page]);
 
   useEffect(() => {
+    // Ne lancer le listener que si on est sur la page des submissions
+    if (page !== "spotSubmissions") {
+      setSubmissions([]);
+      return;
+    }
+    
     const statusOption: SpotSubmissionStatus | undefined =
       submissionFilter === "all" ? undefined : submissionFilter;
     const unsub = listenSpotSubmissions(
@@ -354,9 +491,15 @@ export default function AdminDashboard({
       statusOption ? { status: statusOption } : undefined
     );
     return () => unsub();
-  }, [submissionFilter]);
+  }, [submissionFilter, page]);
 
   useEffect(() => {
+    // Charger les utilisateurs uniquement sur la page users
+    if (page !== "users") {
+      setUsers([]);
+      return;
+    }
+    
     const usersRef = collection(db, "users");
     const q = query(usersRef, orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
@@ -374,7 +517,7 @@ export default function AdminDashboard({
       setUsers(items);
     });
     return () => unsub();
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     if (initialPlaceId) setSelectedPlaceId(initialPlaceId);
@@ -421,6 +564,7 @@ export default function AdminDashboard({
     const fallbackProMembers = users.filter((u) => u.isPro).length;
     const proMembers = customersProMembers || fallbackProMembers;
     const revenueMonthly = proMembers * PRO_MONTHLY_PRICE;
+    const pendingSubmissions = submissions.filter((s) => s.status === "pending").length;
     return {
       publicCount,
       proCount,
@@ -429,8 +573,9 @@ export default function AdminDashboard({
       revenueAnnual: revenueMonthly * 12,
       productsCount: products.length,
       ordersCount: orders.length,
+      pendingSubmissions,
     };
-  }, [places, customers, users, products.length, orders.length]);
+  }, [places, customers, users, products.length, orders.length, submissions]);
 
   const kpisLoading =
     placesLoading || productsLoading || ordersLoading || customersLoading;
@@ -456,47 +601,61 @@ export default function AdminDashboard({
     setProcessingSubmissionId(submission.id);
     try {
       const isPublic = submission.isPublic ?? true;
-      const placePayload: Omit<Place, "id" | "createdAt"> & {
-        city?: string;
-        region?: string;
-        notesForAdmin?: string;
-      } = {
+      
+      // Construire le payload en omettant les champs undefined (Firestore ne les accepte pas)
+      const placePayload: any = {
         title: submission.title,
         description:
           submission.descriptionFull ??
           submission.descriptionShort ??
           submission.title ??
           "Spot urbex",
-        category: submission.category,
-        riskLevel: submission.riskLevel,
-        access: submission.access,
+        category: submission.category ?? "autre",
+        riskLevel: submission.riskLevel ?? "moyen",
+        access: submission.access ?? "moyen",
         lat: submission.coordinates.lat,
         lng: submission.coordinates.lng,
         isPublic,
-        isGhost: submission.isGhost ?? false,
-        isLegend: submission.isLegend ?? false,
-        isProOnly: submission.isProOnly ?? false,
-        dangerIndex:
-          typeof submission.dangerIndex === "number" ? submission.dangerIndex : undefined,
-        paranormalIndex:
-          typeof submission.paranormalIndex === "number" ? submission.paranormalIndex : undefined,
-        city: submission.city,
-        region: submission.region,
-        notesForAdmin: submission.notesForAdmin,
-        addedBy: submission.createdByUserId ?? "admin",
-        createdBy: submission.createdByUserId ?? "admin",
+        isGhost: spotTier === "GHOST",
+        isLegend: spotTier === "EPIC",
+        isProOnly: spotIsProOnly || !isPublic,
+        addedBy: user?.uid ?? "admin",
+        createdBy: user?.uid ?? "admin",
         approved: true,
-        proOnly: !isPublic || !!submission.isProOnly,
+        proOnly: spotIsProOnly || !isPublic,
       };
+
+      // Ajouter les champs optionnels seulement s'ils existent
+      if (typeof submission.dangerIndex === "number") {
+        placePayload.dangerIndex = submission.dangerIndex;
+      }
+      if (typeof submission.paranormalIndex === "number") {
+        placePayload.paranormalIndex = submission.paranormalIndex;
+      }
+      if (submission.city) {
+        placePayload.city = submission.city;
+      }
+      if (submission.region) {
+        placePayload.region = submission.region;
+      }
+      if (submission.notesForAdmin) {
+        placePayload.adminNotes = submission.notesForAdmin;
+      }
+
       const newPlaceId = await createPlace(placePayload);
       await updateSpotSubmission(submission.id, {
         status: "approved",
         approvedSpotId: newPlaceId,
         rejectionReason: undefined,
       });
+
+      toast.success(`Spot "${submission.title}" approuvé avec succès !`);
+      // Reset tier and PRO-only flags after approval
+      setSpotTier("STANDARD");
+      setSpotIsProOnly(false);
     } catch (error) {
       console.error("Erreur approbation spot", error);
-      alert("Impossible d’approuver ce spot pour l’instant.");
+      toast.error("Impossible d’approuver ce spot pour l’instant.");
     } finally {
       setProcessingSubmissionId(null);
     }
@@ -512,7 +671,7 @@ export default function AdminDashboard({
       setRejectionReason("");
     } catch (error) {
       console.error("Erreur rejet spot", error);
-      alert("Impossible de refuser cette soumission pour le moment.");
+      toast.error("Impossible de refuser cette soumission pour le moment.");
     } finally {
       setProcessingSubmissionId(null);
     }
@@ -522,7 +681,11 @@ export default function AdminDashboard({
     return (
       <PageContainer>
         <SectionCard>
-          <p>Chargement du panneau admin…</p>
+          <div className="panel-loading">
+            <Skeleton className="panel-loading__line" />
+            <Skeleton className="panel-loading__line" />
+            <Skeleton className="panel-loading__line" />
+          </div>
         </SectionCard>
       </PageContainer>
     );
@@ -556,7 +719,7 @@ export default function AdminDashboard({
       await callable();
     } catch (err) {
       console.error("Sync Printful error", err);
-      alert("Impossible de synchroniser Printful pour l’instant.");
+      toast.error("Impossible de synchroniser Printful pour l’instant.");
     } finally {
       setSyncingPrintful(false);
     }
@@ -586,6 +749,12 @@ export default function AdminDashboard({
           onViewAllSpots={handleViewAllSpots}
           onViewAllCustomers={handleViewAllCustomers}
           onViewAllOrders={handleViewAllOrders}
+          onViewSpotSubmissions={handleViewSpotSubmissions}
+          proDiagnostics={proDiagnostics}
+          proDebugEnabled={proDebugEnabled}
+          onCopyDiagnostics={handleCopyDiagnostics}
+          onEnableProDebug={handleEnableProDebug}
+          onDisableProDebug={handleDisableProDebug}
         />
       )}
       {page === "shop" && (
@@ -630,6 +799,10 @@ export default function AdminDashboard({
           onReasonChange={setRejectionReason}
           processingId={processingSubmissionId}
           onCenterMap={handleCenterMap}
+          spotTier={spotTier}
+          onSpotTierChange={setSpotTier}
+          spotIsProOnly={spotIsProOnly}
+          onSpotIsProOnlyChange={setSpotIsProOnly}
         />
       )}
       {page === "histories" && <AdminHistoriesPage places={places} />}
@@ -852,11 +1025,27 @@ function AdminOverview({
   onViewAllSpots,
   onViewAllCustomers,
   onViewAllOrders,
+  onViewSpotSubmissions,
+  proDiagnostics,
+  proDebugEnabled,
+  onCopyDiagnostics,
+  onEnableProDebug,
+  onDisableProDebug,
 }: {
   places: Place[];
   customers: ShopCustomer[];
   orders: ShopOrder[];
-  kpis: { publicCount: number; proCount: number; proMembers: number; revenueMonthly: number; revenueAnnual: number; productsCount: number; ordersCount: number };
+  // submissions supprimé - pas utilisé directement (les KPI contiennent pendingSubmissions)
+  kpis: { 
+    publicCount: number; 
+    proCount: number; 
+    proMembers: number; 
+    revenueMonthly: number; 
+    revenueAnnual: number; 
+    productsCount: number; 
+    ordersCount: number;
+    pendingSubmissions: number;
+  };
   users: AdminUser[];
   kpisLoading: boolean;
   kpisError: string | null;
@@ -867,6 +1056,12 @@ function AdminOverview({
   onViewAllSpots: () => void;
   onViewAllCustomers: () => void;
   onViewAllOrders: () => void;
+  onViewSpotSubmissions: () => void;
+  proDiagnostics: ProDiagnosticsInfo;
+  proDebugEnabled: boolean;
+  onCopyDiagnostics: () => void;
+  onEnableProDebug: () => void;
+  onDisableProDebug: () => void;
 }) {
   const latestPlaces = [...places]
     .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
@@ -877,6 +1072,22 @@ function AdminOverview({
         (b.createdAt ?? 0) - (a.createdAt ?? 0)
     )
     .slice(0, 3);
+  const diagnosticEntries = [
+    { label: "PRO", value: String(proDiagnostics.isPro) },
+    { label: "loading", value: String(proDiagnostics.loading) },
+    { label: "source", value: proDiagnostics.source },
+    { label: "proStatus", value: proDiagnostics.proStatus },
+    { label: "uid", value: proDiagnostics.uid ?? "—" },
+  ];
+  if (proDiagnostics.plan) {
+    diagnosticEntries.push({ label: "plan", value: proDiagnostics.plan });
+  }
+  if (proDiagnostics.stripeCustomerId) {
+    diagnosticEntries.push({
+      label: "stripeCustomerId",
+      value: proDiagnostics.stripeCustomerId,
+    });
+  }
   const latestOrders = [...orders]
     .sort((a, b) => (b.createdAt?.getTime?.() ?? 0) - (a.createdAt?.getTime?.() ?? 0))
     .slice(0, 3);
@@ -915,6 +1126,14 @@ function AdminOverview({
           badge="PRO"
           accent
           info={KPI_DEFINITIONS.proCount}
+        />
+        <KpiCard
+          label="En attente validation"
+          value={kpis.pendingSubmissions}
+          badge={kpis.pendingSubmissions > 0 ? "Action requise" : undefined}
+          accent={kpis.pendingSubmissions > 0}
+          info="Nombre de spots soumis par la communauté en attente d'approbation par un admin"
+          onClick={kpis.pendingSubmissions > 0 ? onViewSpotSubmissions : undefined}
         />
         <KpiCard
           label="Membres PRO actifs"
@@ -971,6 +1190,45 @@ function AdminOverview({
   return (
     <>
       {renderKpis()}
+
+      <SectionCard className="admin-diagnostics-card">
+        <div className="admin-section-head admin-section-head--split">
+          <div>
+            <p className="admin-eyebrow">Diagnostics</p>
+            <h3>PRO & debug</h3>
+          </div>
+          <div className="admin-diagnostics-status">
+            <span
+              className={`admin-pill admin-pill--compact ${
+                proDebugEnabled ? "pill-pro" : "pill-muted"
+              }`}
+            >
+              Debug PRO {proDebugEnabled ? "activé" : "désactivé"}
+            </span>
+          </div>
+        </div>
+        <div className="admin-diagnostics-grid">
+          {diagnosticEntries.map((entry) => (
+            <div key={entry.label} className="admin-diagnostics-cell">
+              <span className="admin-diagnostics-label">{entry.label}</span>
+              <span className="admin-diagnostics-value">{entry.value}</span>
+            </div>
+          ))}
+        </div>
+        {import.meta.env.DEV && (
+          <div className="admin-diagnostics-actions">
+            <UrbexButton variant="primary" onClick={onCopyDiagnostics}>
+              Copier diagnostics
+            </UrbexButton>
+            <UrbexButton variant="secondary" onClick={onEnableProDebug}>
+              Activer debug PRO (dev)
+            </UrbexButton>
+            <UrbexButton variant="secondary" onClick={onDisableProDebug}>
+              Désactiver debug PRO
+            </UrbexButton>
+          </div>
+        )}
+      </SectionCard>
 
       <div className="admin-grid-2">
         <SectionCard>
@@ -1616,6 +1874,10 @@ function AdminSpotSubmissionsPage({
   onReasonChange,
   processingId,
   onCenterMap,
+  spotTier,
+  onSpotTierChange,
+  spotIsProOnly,
+  onSpotIsProOnlyChange,
 }: {
   submissions: SpotSubmission[];
   filter: SubmissionFilter;
@@ -1628,6 +1890,10 @@ function AdminSpotSubmissionsPage({
   onReasonChange: (value: string) => void;
   processingId: string | null;
   onCenterMap: (submission: SpotSubmission) => void;
+  spotTier: "STANDARD" | "EPIC" | "GHOST";
+  onSpotTierChange: (tier: "STANDARD" | "EPIC" | "GHOST") => void;
+  spotIsProOnly: boolean;
+  onSpotIsProOnlyChange: (value: boolean) => void;
 }) {
   const filters: { value: SubmissionFilter; label: string }[] = [
     { value: "pending", label: "En attente" },
@@ -1809,6 +2075,27 @@ function AdminSpotSubmissionsPage({
                   <p>{selectedSubmission.notesForAdmin}</p>
                 </div>
               )}
+              <div className="admin-submission-section">
+                <p className="admin-submission-label">Classification du spot</p>
+                <select
+                  className="admin-toolbar-select"
+                  value={spotTier}
+                  onChange={(e) => onSpotTierChange(e.target.value as "STANDARD" | "EPIC" | "GHOST")}
+                  style={{ width: "100%", marginBottom: "12px" }}
+                >
+                  <option value="STANDARD">🌍 STANDARD – Spot classique</option>
+                  <option value="EPIC">👑 EPIC – Spot légendaire</option>
+                  <option value="GHOST">👻 GHOST – Spot rare et caché</option>
+                </select>
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={spotIsProOnly}
+                    onChange={(e) => onSpotIsProOnlyChange(e.target.checked)}
+                  />
+                  <span>🔒 Réservé aux membres PRO uniquement</span>
+                </label>
+              </div>
               <label className="admin-submission-rejection">
                 <span>Motif de refus (facultatif)</span>
                 <textarea
@@ -2408,7 +2695,7 @@ function AdminSettingsPage() {
             })}
           </div>
         </section>
-      </div>
+      </fieldset>
       {import.meta.env.DEV && (
         <p
           className={`admin-settings-firestore-status ${
@@ -3159,15 +3446,18 @@ function KpiCard({
   badge,
   accent,
   info,
+  onClick,
 }: {
   label: string;
   value: string | number;
   badge?: string;
   accent?: boolean;
   info?: string;
+  onClick?: () => void;
 }) {
-  return (
-    <div className={`admin-kpi-card ${accent ? "is-accent" : ""}`}>
+  const className = `admin-kpi-card ${accent ? "is-accent" : ""} ${onClick ? "is-clickable" : ""}`;
+  const content = (
+    <>
       <p className="admin-kpi-label">
         {label} {badge && <span className="admin-pill pill-muted">{badge}</span>}
         {info && (
@@ -3177,6 +3467,20 @@ function KpiCard({
         )}
       </p>
       <h3 className="admin-kpi-value">{value}</h3>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" className={className} onClick={onClick}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className={className}>
+      {content}
     </div>
   );
 }

@@ -7,6 +7,62 @@
   color: #f8fbff;
 }
 
+.spot-page-loading {
+  width: min(960px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.spot-page-skel-hero {
+  width: 100%;
+  height: 360px;
+}
+
+.spot-page-skel-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.spot-page-skel-title {
+  width: 70%;
+  height: 24px;
+}
+
+.spot-page-skel-subtitle {
+  width: 45%;
+  height: 16px;
+}
+
+.spot-page-skel-pills {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.spot-page-skel-pill {
+  width: 90px;
+  height: 26px;
+}
+
+.spot-page-skel-text {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.spot-page-skel-line {
+  height: 14px;
+  width: 100%;
+}
+
+.spot-page-skel-gallery {
+  width: 100%;
+  height: 220px;
+}
+
 .spot-page-main {
   width: min(960px, 100%);
   margin: 0 auto;

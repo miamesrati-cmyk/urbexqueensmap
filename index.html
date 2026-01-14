@@ -3,9 +3,98 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <link rel="shortcut icon" href="/vite.svg" />
-    <title>Urbex Map</title>
+    
+    <!-- Performance: Preconnect to critical origins -->
+    <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
+    <link rel="preconnect" href="https://firestore.googleapis.com" />
+    <link rel="dns-prefetch" href="https://api.mapbox.com" />
+    <link rel="dns-prefetch" href="https://events.mapbox.com" />
+    
+    <!-- Gaming Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <!-- 
+      CSP Note: Content-Security-Policy-Report-Only is NOT allowed in <meta> tags by browsers.
+      For production, configure CSP via Firebase hosting headers in firebase.json
+      For now, CSP in <meta> is disabled to avoid console warnings.
+    -->
+    <script type="module">
+      // CSP disabled in dev - configure via firebase.json for production
+      const enforceCSP = import.meta.env.VITE_ENFORCE_CSP === "1";
+      
+      // Only set CSP if explicitly enforced (not in report-only mode)
+      if (enforceCSP) {
+        const strictNoEval = import.meta.env.VITE_CSP_STRICT_NO_EVAL === "1";
+        const scriptSources = [
+          "'self'",
+          "'unsafe-inline'",
+          ...(strictNoEval ? [] : ["'unsafe-eval'"]),
+          "https://api.mapbox.com",
+          "https://events.mapbox.com",
+          "https://www.gstatic.com",
+          "https://www.google.com",
+          "https://www.googletagmanager.com",
+          "https://js.stripe.com",
+        ];
+        const styleSources = ["'self'", "'unsafe-inline'", "https://api.mapbox.com"];
+        const imgSources = [
+          "'self'",
+          "data:",
+          "blob:",
+          "https://*.mapbox.com",
+          "https://firebasestorage.googleapis.com",
+        ];
+        const connectSources = [
+          "'self'",
+          "https://*.firebase.com",
+          "https://*.googleapis.com",
+          "https://api.mapbox.com",
+          "https://events.mapbox.com",
+          "https://firestore.googleapis.com",
+          "https://identitytoolkit.googleapis.com",
+          "https://securetoken.googleapis.com",
+          "https://api.stripe.com",
+        ];
+        const frameSources = ["https://js.stripe.com"];
+        const cspDirectives = [
+          "default-src 'self';",
+          `script-src ${scriptSources.join(" ")};`,
+          `style-src ${styleSources.join(" ")};`,
+          `img-src ${imgSources.join(" ")};`,
+          `connect-src ${connectSources.join(" ")};`,
+          `frame-src ${frameSources.join(" ")};`,
+          "object-src 'none';",
+          "frame-ancestors 'self';",
+        ].join(" ");
+        
+        const meta = document.createElement("meta");
+        meta.setAttribute("http-equiv", "Content-Security-Policy");
+        meta.setAttribute("content", cspDirectives);
+        document.head.appendChild(meta);
+        
+        console.log("[UQ][CSP] Enforced via meta tag");
+      }
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="canonical" href="https://urbexqueens.com/" />
+    <meta name="description" content="Carte interactive d’exploration urbaine pour repérer, suivre et partager les spots secrets d’UrbexQueens." />
+    <meta name="theme-color" content="#130624" />
+    <meta property="og:title" content="UrbexQueens — Carte Urbex & Spots" />
+    <meta property="og:description" content="Localise les spots urbex incontournables, trace des missions EPIC/GHOST et partage ton carnet d’explorations." />
+    <meta property="og:url" content="https://urbexqueens.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&h=630&q=80" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="UrbexQueens — Carte Urbex & Spots" />
+    <meta name="twitter:description" content="Localise les spots urbex incontournables, trace des missions EPIC/GHOST et partage ton carnet d’explorations." />
+    <meta name="twitter:image" content="https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&h=630&q=80" />
+    <title>UrbexQueens — Carte Urbex & Spots</title>
   </head>
   <body style="margin:0;background:#000">
     <div id="root"></div>

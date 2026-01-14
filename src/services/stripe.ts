@@ -1,6 +1,7 @@
 import { httpsCallable } from "firebase/functions";
 import type { CartItem } from "../contexts/cartLogic";
 import { auth, functions } from "../lib/firebase";
+// import { trackCheckoutStart } from "../utils/conversionTracking"; // TODO: Uncomment when ready
 
 export type StripeCheckoutResponse = {
   url: string;
@@ -29,6 +30,12 @@ type StartProCheckoutOptions = {
 
 export async function startProCheckout(options?: StartProCheckoutOptions) {
   console.info("[analytics] pro_checkout_start");
+  
+  // TODO: CONVERSION TRACKING - Uncomment when ready for production metrics
+  // const params = new URLSearchParams(window.location.search);
+  // const src = params.get("src") || "direct";
+  // trackCheckoutStart(options?.priceId ?? "pro_monthly", src, auth.currentUser?.uid || null);
+  
   if (typeof window === "undefined") {
     throw new Error("Impossible de démarrer un paiement côté serveur.");
   }

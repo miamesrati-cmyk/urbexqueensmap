@@ -1,5 +1,7 @@
 import { useState } from "react";
+import useInteractionPulse from "../hooks/useInteractionPulse";
 import { startProCheckout } from "../services/stripe";
+import { useToast } from "../contexts/useToast";
 
 type ProUpsellModalProps = {
   open: boolean;
@@ -31,6 +33,8 @@ export default function ProUpsellModal({
   onContinueFree,
 }: ProUpsellModalProps) {
   const [loading, setLoading] = useState(false);
+  const [ctaPulseActive, triggerCtaPulse] = useInteractionPulse(360);
+  const toast = useToast();
   const handleContinue = () => {
     if (onContinueFree) {
       onContinueFree();
@@ -42,6 +46,7 @@ export default function ProUpsellModal({
   if (!open) return null;
 
   const handleGoPro = async () => {
+    triggerCtaPulse();
     setLoading(true);
     try {
       const url = await startProCheckout({ priceId: "pro_monthly" });
@@ -52,7 +57,7 @@ export default function ProUpsellModal({
         err instanceof Error
           ? err.message
           : "Impossible d’ouvrir le paiement pour l’instant.";
-      alert(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -93,7 +98,7 @@ export default function ProUpsellModal({
 
         <div className="pro-modal-actions">
           <button
-            className="pro-modal-cta"
+            className={`pro-modal-cta${ctaPulseActive ? " is-pulsing" : ""}`}
             onClick={handleGoPro}
             disabled={loading}
           >

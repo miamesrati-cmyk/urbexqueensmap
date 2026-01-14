@@ -1,0 +1,189 @@
+import {
+  doc,
+  onSnapshot,
+  runTransaction,
+  setDoc,
+  type Transaction,
+} from "firebase/firestore";
+import { db } from "../lib/firebase";
+import { ensureWritesAllowed } from "../lib/securityGuard";
+
+export type UserGamification = {
+  uid: string;
+  xp: number;
+  level: number;
+  completedQuests?: string[];
+};
+
+export type XpOptions = {
+  isPro?: boolean;
+};
+
+export type XpUpdateResult = {
+  xp: number;
+  level: number;
+  xpGain: number;
+};
+
+export const PRO_XP_MULTIPLIER = 1.2;
+
+export function applyProXpMultiplier(xp: number, isPro?: boolean) {
+  if (!isPro) return xp;
+  const boosted = Math.round(xp * PRO_XP_MULTIPLIER);
+  return boosted > xp ? boosted : xp;
+}
+
+export async function applyXpDeltaInTransaction(
+  tx: Transaction,
+  uid: string,
+  delta: number,
+  options?: XpOptions
+): Promise<XpUpdateResult> {
+  const safeDelta = Math.max(0, Math.round(delta));
+  const effectiveGain = applyProXpMultiplier(safeDelta, options?.isPro);
+  const ref = doc(db, "userGamification", uid);
+  const snap = await tx.get(ref);
+
+  let xp = 0;
+  if (snap.exists()) {
+    const data = snap.data() as any;
+    xp = typeof data.xp === "number" ? data.xp : 0;
+  }
+
+  xp += effectiveGain;
+  const level = computeLevelFromXp(xp);
+
+  tx.set(
+    ref,
+    {
+      xp,
+      level,
+    },
+    { merge: true }
+  );
+
+  return { xp, level, xpGain: effectiveGain };
+}
+
+// Fonction simple de calcul de niveau : 100 XP par niveau
+export function computeLevelFromXp(xp: number): number {
+  if (xp < 0) xp = 0;
+  return Math.floor(xp / 100) + 1;
+}
+
+// Écouter les stats gamification d'un user
+export function listenUserGamification(
+  uid: string,
+  callback: (data: UserGamification) => void
+) {
+  const ref = doc(db, "userGamification", uid);
+
+  return onSnapshot(ref, async (snap) => {
+    if (snap.exists()) {
+      const data = snap.data() as any;
+      const xp = typeof data.xp === "number" ? data.xp : 0;
+      const level =
+        typeof data.level === "number" ? data.level : computeLevelFromXp(xp);
+
+      callback({
+        uid,
+        xp,
+        level,
+        completedQuests: Array.isArray(data.completedQuests)
+          ? data.completedQuests
+          : [],
+      });
+    } else {
+      const initial: UserGamification = {
+        uid,
+        xp: 0,
+        level: 1,
+        completedQuests: [],
+      };
+      ensureWritesAllowed();
+      await setDoc(ref, initial, { merge: true });
+      callback(initial);
+    }
+  });
+}
+
+// Ajouter de l'XP de façon transactionnelle
+export async function addXpToUser(uid: string, delta: number, options?: XpOptions) {
+  ensureWritesAllowed();
+  await runTransaction(db, async (tx) => {
+    await applyXpDeltaInTransaction(tx, uid, delta, options);
+  });
+}
+
+// Marquer une énigme / quête comme complétée pour un user + XP
+export async function completeQuest(
+  uid: string,
+  questId: string,
+  xpReward: number,
+  options?: XpOptions
+) {
+  ensureWritesAllowed();
+  const ref = doc(db, "userGamification", uid);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    let completed: string[] = [];
+    if (snap.exists()) {
+      const data = snap.data() as any;
+      if (Array.isArray(data.completedQuests)) {
+        completed = data.completedQuests;
+      }
+    }
+
+    if (completed.includes(questId)) {
+      return;
+    }
+
+    completed = [...completed, questId];
+    await applyXpDeltaInTransaction(tx, uid, xpReward, options);
+
+    tx.set(
+      ref,
+      {
+        completedQuests: completed,
+      },
+      { merge: true }
+    );
+  });
+}
+
+export type XpEventType =
+  | "add_spot"
+  | "save_spot"
+  | "checkin_spot"
+  | "mark_done"
+  | "add_comment"
+  | "upload_photo";
+
+export function getXpForEvent(type: XpEventType): number {
+  switch (type) {
+    case "add_spot":
+      return 50;
+    case "save_spot":
+      return 10;
+    case "mark_done":
+      return 20;
+    case "checkin_spot":
+      return 25;
+    case "add_comment":
+      return 5;
+    case "upload_photo":
+      return 15;
+    default:
+      return 0;
+  }
+}
+
+export async function awardXpForEvent(
+  uid: string,
+  type: XpEventType,
+  options?: XpOptions
+) {
+  const delta = getXpForEvent(type);
+  if (delta <= 0) return;
+  await addXpToUser(uid, delta, options);
+}

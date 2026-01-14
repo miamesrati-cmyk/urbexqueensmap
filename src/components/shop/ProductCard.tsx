@@ -28,11 +28,14 @@ export default function ProductCard({
               src={image}
               alt={product.name}
               loading="lazy"
+              decoding="async"
               className="product-card-image"
             />
           ) : (
             <div className="product-card-placeholder">Image manquante</div>
           )}
+          {/* Shine effect on hover */}
+          <div className="product-card-shine" />
         </div>
 
         <div className="product-card-badges">

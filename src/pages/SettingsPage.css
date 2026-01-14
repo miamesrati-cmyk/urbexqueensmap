@@ -324,6 +324,43 @@
   gap: 14px;
 }
 
+.settings-profile-skeleton {
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 10px 12px;
+}
+
+.settings-profile-skeleton__avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+}
+
+.settings-profile-skeleton__details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-profile-skeleton__stats {
+  display: flex;
+  gap: 10px;
+}
+
+.settings-profile-skeleton__stat {
+  width: 80px;
+  height: 14px;
+  border-radius: 10px;
+}
+
+.settings-profile-skeleton__cta {
+  width: 160px;
+  min-height: 44px;
+}
+
 .user-avatar {
   width: 64px;
   height: 64px;

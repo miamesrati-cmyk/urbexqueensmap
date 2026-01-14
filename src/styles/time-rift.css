@@ -1,0 +1,288 @@
+/* 🕰️ TIME RIFT - Historical Map Overlay (PRO feature, zero data MVP) */
+
+/* ✨ TIME RIFT BUTTON: PRO badge (premium feel, not lock) */
+.map-pro-pill .pro-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  background: linear-gradient(135deg, #A356FF, #4AF4FF);
+  color: #000;
+  border-radius: 4px;
+  text-shadow: none;
+  opacity: 0.9;
+}
+
+/* ✨ TIME GLITCH ANIMATION (non-PRO click, 300ms before redirect) */
+@keyframes time-glitch {
+  0% { transform: translate(0); opacity: 1; }
+  20% { transform: translate(-2px, 2px); opacity: 0.8; }
+  40% { transform: translate(2px, -2px); opacity: 0.9; }
+  60% { transform: translate(-2px, -2px); opacity: 0.7; }
+  80% { transform: translate(2px, 2px); opacity: 0.9; }
+  100% { transform: translate(0); opacity: 1; }
+}
+
+.map-pro-pill.is-locked-pulse {
+  animation: time-glitch 0.3s ease;
+  box-shadow: 
+    0 0 20px rgba(163, 86, 255, 0.6),
+    0 0 40px rgba(74, 244, 255, 0.4);
+}
+
+/* Vignette overlay when Time Rift active */
+.route-map.time-rift-active::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  
+  /* Scanlines (lightweight) */
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.03),
+      rgba(0, 0, 0, 0.03) 1px,
+      transparent 1px,
+      transparent 2px
+    );
+  
+  /* Tint overlay (changes per mode) */
+  background-color: rgba(255, 230, 180, 0.10); /* Default: sepia for archives (boosted 0.06→0.10) */
+  
+  /* Vignette (boosted visibility) */
+  box-shadow: inset 0 0 150px rgba(0, 0, 0, 0.5);
+  
+  mix-blend-mode: multiply;
+  
+  /* ✨ SMOOTH MODE TRANSITION (premium polish) */
+  transition: background-color 180ms ease-out;
+}
+
+/* Mode-specific tints */
+.route-map.time-rift-active.time-rift-mode--decay::after {
+  background-color: rgba(163, 86, 255, 0.08); /* Violet for decay */
+}
+
+.route-map.time-rift-active.time-rift-mode--thenNow::after {
+  background-color: rgba(100, 150, 255, 0.10); /* Blue for then/now (boosted 0.06→0.10) */
+}
+
+/* Time Rift Panel - Floating bottom overlay */
+.time-rift-panel {
+  position: fixed; /* Changed from absolute - parent has overflow:hidden */
+  bottom: calc(20px + env(safe-area-inset-bottom)); /* iOS safe-area support */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  max-width: 700px;
+  
+  background: rgba(11, 10, 20, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 16px 20px;
+  
+  box-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 0 30px rgba(163, 86, 255, 0.2);
+  
+  backdrop-filter: blur(1px); /* Minimal blur for performance */
+  z-index: 10000;
+  
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Grain texture overlay (pseudo-element) */
+.time-rift-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.02),
+      rgba(255, 255, 255, 0.02) 1px,
+      transparent 1px,
+      transparent 2px
+    );
+  
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* All panel content above grain */
+.time-rift-panel > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Header */
+.time-rift-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.time-rift-title {
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 0 10px rgba(74, 244, 255, 0.5);
+}
+
+.time-rift-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+
+.time-rift-close:hover {
+  color: rgba(255, 74, 138, 0.9);
+}
+
+/* Modes (3 buttons) */
+.time-rift-modes {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.time-rift-mode {
+  flex: 1;
+  padding: 8px 12px;
+  
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.time-rift-mode:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(163, 86, 255, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.time-rift-mode.active {
+  background: linear-gradient(180deg, rgba(163, 86, 255, 0.3), rgba(74, 244, 255, 0.2));
+  border-color: rgba(74, 244, 255, 0.6);
+  color: rgba(255, 255, 255, 1);
+  box-shadow: 0 0 12px rgba(74, 244, 255, 0.3);
+}
+
+/* Year slider/presets */
+.time-rift-slider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.time-rift-slider label {
+  font-size: 1.2rem;
+}
+
+.time-rift-presets {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+}
+
+.time-rift-preset {
+  flex: 1;
+  padding: 6px 10px;
+  
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.time-rift-preset:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.time-rift-preset.active {
+  background: rgba(74, 244, 255, 0.2);
+  border-color: rgba(74, 244, 255, 0.5);
+  color: rgba(74, 244, 255, 1);
+  box-shadow: 0 0 8px rgba(74, 244, 255, 0.3);
+}
+
+.time-rift-year-display {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+  min-width: 50px;
+  text-align: right;
+}
+
+/* Hint text */
+.time-rift-hint {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+  margin-top: 4px;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .time-rift-panel {
+    width: 90%;
+    padding: 12px 16px;
+    bottom: 8px;
+  }
+  
+  .time-rift-modes {
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .time-rift-mode {
+    font-size: 0.7rem;
+    padding: 6px 10px;
+  }
+  
+  .time-rift-presets {
+    gap: 4px;
+  }
+  
+  .time-rift-preset {
+    font-size: 0.65rem;
+    padding: 4px 6px;
+  }
+}

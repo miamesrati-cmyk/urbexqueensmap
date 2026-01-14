@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { resolveUserByHandle } from "../services/userProfiles";
 import type { ProfileViewSection } from "../lib/profileViews";
 import ProfilePage from "./ProfilePage";
+import { ProfileSkeleton } from "./skeletons/SkeletonVariants";
 
 type Props = {
   handle: string;
@@ -37,7 +38,7 @@ export default function ProfileHandlePage({ handle, onBack, view }: Props) {
     return (
       <div className="uq-profile-page">
         <div className="uq-profile-card" style={{ margin: 24 }}>
-          Chargement du profil…
+          <ProfileSkeleton />
         </div>
       </div>
     );

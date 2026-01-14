@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/browser";
+import type { EnvValidationIssue } from "../types/envValidation";
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
 const RELEASE =
   import.meta.env.VITE_APP_VERSION ??
@@ -19,6 +20,10 @@ const shouldInitSentry =
   Boolean(import.meta.env.PROD) &&
   typeof SENTRY_DSN === "string" &&
   SENTRY_DSN.trim().length > 0;
+
+const CSP_EVENT_SAMPLE_RATE = clampRate(
+  Number(import.meta.env.VITE_SENTRY_CSP_SAMPLE_RATE ?? "0.02")
+);
 
 const DEFAULT_TAGS = {
   appEnv: ENVIRONMENT,
@@ -75,6 +80,65 @@ const captureMapboxError = (error: unknown) => {
 const captureMessage = (message: string, level?: Sentry.SeverityLevel) => {
   if (!shouldInitSentry) return;
   Sentry.captureMessage(message, level);
+};
+
+const captureSecurityPolicyViolation = (event: SecurityPolicyViolationEvent) => {
+  if (!shouldInitSentry) return;
+  if (Math.random() > CSP_EVENT_SAMPLE_RATE) return;
+  const directive = event.violatedDirective ?? "unknown";
+  const blocked = event.blockedURI ?? "unknown";
+  const source = event.sourceFile ?? "unknown";
+  Sentry.withScope((scope) => {
+    scope.setTag("feature", "csp");
+    scope.setTag("csp_directive", directive);
+    scope.setExtra("blocked_uri", blocked);
+    scope.setExtra("document_uri", event.documentURI ?? "unknown");
+    scope.setExtra("source_file", source);
+    scope.setExtra("referrer", event.referrer ?? "unknown");
+    scope.setExtra("original_policy", event.originalPolicy ?? "unknown");
+    scope.setExtra("line_number", event.lineNumber ?? 0);
+    scope.setExtra("column_number", event.columnNumber ?? 0);
+    scope.setContext("csp_violation", {
+      directive,
+      blocked,
+      source,
+      document: event.documentURI ?? "unknown",
+    });
+    scope.setFingerprint(["csp", directive, blocked, source]);
+    Sentry.captureMessage("Content Security Policy violation reported", "warning");
+  });
+};
+
+type EnvIssuePayload = {
+  message: string;
+  issueType: "missing" | "invalid";
+  missingVars?: string[];
+  invalidIssues?: EnvValidationIssue[];
+  buildSha: string;
+  buildTime: string;
+};
+
+const captureEnvIssue = (payload: EnvIssuePayload) => {
+  if (!shouldInitSentry) return;
+  const fingerprint = ["uq-missing-env", payload.buildSha || "unknown"];
+  const missingTag =
+    payload.issueType === "missing"
+      ? payload.missingVars?.join(", ") ?? ""
+      : payload.invalidIssues?.map((issue) => issue.name).join(", ") ?? "invalid";
+
+  Sentry.withScope((scope) => {
+    scope.setTag("uq_env_missing", "true");
+    scope.setTag("build_sha", payload.buildSha || "unknown");
+    scope.setTag("missing_vars", missingTag);
+    scope.setFingerprint(fingerprint);
+    scope.setContext("env_validation", {
+      type: payload.issueType,
+      missing: payload.missingVars,
+      invalid: payload.invalidIssues,
+      buildTime: payload.buildTime,
+    });
+    Sentry.captureMessage(payload.message, "fatal");
+  });
 };
 
 const captureBreadcrumb = (breadcrumb: Sentry.Breadcrumb) => {
@@ -148,4 +212,11 @@ function clampRate(rate: number) {
   return Math.max(0, Math.min(1, rate));
 }
 
-export { captureException, captureMapboxError, captureMessage, captureBreadcrumb };
+export {
+  captureException,
+  captureMapboxError,
+  captureMessage,
+  captureBreadcrumb,
+  captureEnvIssue,
+  captureSecurityPolicyViolation,
+};

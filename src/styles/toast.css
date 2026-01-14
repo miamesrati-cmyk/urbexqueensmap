@@ -1,0 +1,99 @@
+.toast-viewport {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1400;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-end;
+  pointer-events: none;
+  width: min(360px, calc(100% - 2rem));
+}
+.toast-viewport::after {
+  content: "";
+  display: block;
+  height: 0;
+}
+@media (max-width: 768px) {
+  .toast-viewport {
+    top: auto;
+    bottom: 1rem;
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: center;
+  }
+}
+.toast-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  background: rgba(8, 8, 18, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55), 0 0 25px rgba(255, 255, 255, 0.04);
+  color: #f8f6ff;
+  backdrop-filter: blur(24px);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateX(32px);
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+.toast-item.is-entered {
+  opacity: 1;
+  transform: translateX(0);
+}
+.toast-item.is-leaving {
+  opacity: 0;
+  transform: translateX(32px);
+}
+.toast-item.success {
+  --toast-glow: rgba(72, 255, 185, 0.35);
+  border-color: rgba(72, 255, 185, 0.45);
+  box-shadow: 0 25px 40px rgba(4, 147, 101, 0.25), 0 0 18px var(--toast-glow);
+}
+.toast-item.error {
+  --toast-glow: rgba(255, 118, 125, 0.45);
+  border-color: rgba(255, 118, 125, 0.5);
+  box-shadow: 0 25px 40px rgba(209, 48, 48, 0.25), 0 0 18px var(--toast-glow);
+}
+.toast-item.info {
+  --toast-glow: rgba(91, 154, 255, 0.35);
+  border-color: rgba(91, 154, 255, 0.5);
+  box-shadow: 0 25px 40px rgba(40, 103, 255, 0.25), 0 0 18px var(--toast-glow);
+}
+.toast-item.warning {
+  --toast-glow: rgba(255, 193, 7, 0.45);
+  border-color: rgba(255, 193, 7, 0.4);
+  box-shadow: 0 25px 40px rgba(255, 193, 7, 0.25), 0 0 18px var(--toast-glow);
+}
+.toast-message {
+  flex: 1;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.toast-close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  line-height: 1;
+  font-size: 1rem;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 200ms ease;
+}
+.toast-close:hover {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-item {
+    transition-duration: 0ms;
+  }
+}

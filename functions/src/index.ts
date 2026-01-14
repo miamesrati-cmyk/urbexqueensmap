@@ -13,12 +13,20 @@ import {
   fetchPrintfulOrders,
   fetchPrintfulProducts,
 } from "./services/printful";
-import { enforceRateLimit, requireAppCheck, logSecurityEvent } from "./security";
+import {
+  enforceRateLimit,
+  requireAppCheck,
+  requireAppCheckRequest,
+  logSecurityEvent,
+} from "./security";
 import {
   ADMIN_UI_CONFIG_SCHEMA_VERSION,
   DEFAULT_ADMIN_UI_CONFIG,
 } from "../../shared/adminUiConfig";
 import type { AdminUiConfig } from "../../shared/adminUiConfig";
+import { sanitizeText } from "./sanitization";
+import { computeGeohash } from "./lib/geohash";
+import type { File } from "@google-cloud/storage";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -68,6 +76,42 @@ const sentryEnv =
   functions.config().sentry?.environment ?? process.env.NODE_ENV ?? "production";
 const shouldInitSentry =
   typeof sentryDsn === "string" && sentryDsn.trim().length > 0;
+
+const CSP_REPORT_SAMPLE_RATE = (() => {
+  const parsed = Number(process.env.CSP_REPORT_SAMPLE_RATE ?? "");
+  if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 1) {
+    return parsed;
+  }
+  return 0.1;
+})();
+const CSP_REPORT_HISTORY_LIMIT = (() => {
+  const parsed = Number(process.env.CSP_REPORT_HISTORY_LIMIT ?? "");
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return 200;
+})();
+const seenCspViolations = new Set<string>();
+const cspViolationHistory: string[] = [];
+
+function shouldReportCspViolation(key: string) {
+  if (seenCspViolations.has(key)) {
+    return false;
+  }
+  seenCspViolations.add(key);
+  cspViolationHistory.push(key);
+  if (cspViolationHistory.length > CSP_REPORT_HISTORY_LIMIT) {
+    const oldest = cspViolationHistory.shift();
+    if (oldest) {
+      seenCspViolations.delete(oldest);
+    }
+  }
+  return true;
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
 
 if (shouldInitSentry) {
   Sentry.init({
@@ -325,26 +369,6 @@ function isSubscriptionActive(status: string | undefined): boolean {
   return !PRO_DOWNGRADE_STATUSES.has(normalized);
 }
 
-async function ensureAppCheck(req: functions.https.Request, _action: string) {
-  const token =
-    req.header("X-Firebase-AppCheck") ?? req.header("x-firebase-appcheck");
-  if (!token) {
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      "App Check token requis."
-    );
-  }
-
-  try {
-    await admin.appCheck().verifyToken(token);
-  } catch {
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      "App Check invalide."
-    );
-  }
-}
-
 async function ensureAdminRequest(req: functions.https.Request, action: string) {
   const header = req.header("Authorization") ?? "";
   const match = header.match(/^Bearer (.+)$/i);
@@ -479,7 +503,7 @@ const overlayVersionSchema = z
   })
   .passthrough();
 
-const themeTokensSchema = z.record(z.any()).optional();
+const themeTokensSchema = z.record(z.string(), z.any()).optional();
 
 function getZodErrorMessage(error: z.ZodError) {
   return (
@@ -781,21 +805,17 @@ async function processStripeWebhookEvent(event: Stripe.Event) {
     case "charge.dispute.created":
       charge = event.data.object as Stripe.Charge;
       {
-        const invoiceId = resolveSubscriptionId(
-          (charge.invoice as Stripe.Invoice | string) ?? null
-        );
+        const invoiceReference = charge.invoice;
+        const invoiceId =
+          typeof invoiceReference === "string"
+            ? invoiceReference
+            : invoiceReference?.id ?? null;
         if (invoiceId) {
           invoice = await stripe.invoices.retrieve(invoiceId);
           const subId = resolveSubscriptionId(invoice.subscription);
           if (subId) {
             subscription = await fetchSubscriptionFromStripe(subId);
           }
-        }
-      }
-      if (!subscription && charge.subscription) {
-        const subId = resolveSubscriptionId(charge.subscription);
-        if (subId) {
-          subscription = await fetchSubscriptionFromStripe(subId);
         }
       }
       break;
@@ -902,10 +922,11 @@ async function getCustomerMetadataUid(
   }
   try {
     const customer = await stripe.customers.retrieve(customerId);
-    if (typeof customer === "object") {
-      return customer.metadata?.uid ?? null;
+    if ("deleted" in customer && customer.deleted) {
+      return null;
     }
-    return null;
+    const activeCustomer = customer as Stripe.Customer;
+    return activeCustomer.metadata?.uid ?? null;
   } catch (err) {
     functions.logger.warn("Impossible de récupérer les métadonnées du client Stripe.", {
       customerId,
@@ -1083,6 +1104,9 @@ export const createProCheckoutSession = functions
       return;
     }
 
+    const action = "createProCheckoutSession";
+    await requireAppCheckRequest(req, action);
+
     if (!stripe || !stripeSecret) {
       respondWithHttpError(
         res,
@@ -1193,10 +1217,17 @@ async function resolveSessionCustomer(
     return null;
   }
   if (typeof session.customer === "object") {
-    return session.customer;
+    if ("deleted" in session.customer && session.customer.deleted) {
+      return null;
+    }
+    return session.customer as Stripe.Customer;
   }
   try {
-    return await stripe.customers.retrieve(session.customer);
+    const customer = await stripe.customers.retrieve(session.customer);
+    if ("deleted" in customer && customer.deleted) {
+      return null;
+    }
+    return customer as Stripe.Customer;
   } catch (err) {
     functions.logger.warn("Unable to resolve Stripe customer metadata", {
       customer: session.customer,
@@ -1250,6 +1281,9 @@ export const verifyProSession = functions
       res.status(405).json({ error: "Méthode non autorisée." });
       return;
     }
+
+    const action = "verifyProSession";
+    await requireAppCheckRequest(req, action);
 
     if (!stripe || !stripeSecret) {
       respondWithHttpError(
@@ -1338,11 +1372,11 @@ export const verifyProSession = functions
       const entitlement = computeProEntitlementFromStripe(subscription);
       const entitled = entitlement.isPro;
       if (entitled) {
-        const event: Stripe.Event = {
-          id: `verify-${sessionId}-${Date.now()}`,
-          type: "verify.pro_session",
-          created: Math.floor(Date.now() / 1000),
-        } as Stripe.Event;
+    const event = {
+      id: `verify-${sessionId}-${Date.now()}`,
+      type: "verify.pro_session" as const,
+      created: Math.floor(Date.now() / 1000),
+    } as unknown as Stripe.Event;
         await persistUserProState(decoded.uid, subscription, event, entitlement, true);
       }
 
@@ -1463,11 +1497,11 @@ async function reconcileStripeCustomer(uid: string, customerId: string) {
     limit: 10,
   });
 
-  const event: Stripe.Event = {
+  const event = {
     id: `reconcile-${customerId}-${Date.now()}`,
-    type: "reconcile",
+    type: "reconcile" as const,
     created: Math.floor(Date.now() / 1000),
-  } as Stripe.Event;
+  } as unknown as Stripe.Event;
 
   const [candidate] = subscriptions.data
     .slice()
@@ -1629,6 +1663,8 @@ export const createPrintfulOrderFn = functions
 export const publishThemeVersion = functions
   .region("us-central1")
   .https.onCall(async (data, context) => {
+    const action = "publishThemeVersion";
+    requireAppCheck(context, action);
     const parsed = publishThemeSchema.safeParse(data);
     if (!parsed.success) {
       throw new functions.https.HttpsError(
@@ -1637,8 +1673,8 @@ export const publishThemeVersion = functions
       );
     }
 
-    const uid = await requireAdmin(context, "publishThemeVersion");
-    enforceRateLimit(context, "publishThemeVersion");
+    const uid = await requireAdmin(context, action);
+    enforceRateLimit(context, action);
 
     const { themeId, versionId, note } = parsed.data;
     const versionRef = db
@@ -1805,7 +1841,7 @@ export const publishAdminUiConfig = functions
     }
 
     const publishedSnap = await publishedRef.get();
-    const publishedData = publishedSnap.exists() ? publishedSnap.data() ?? {} : {};
+    const publishedData = publishedSnap.exists ? publishedSnap.data() ?? {} : {};
     const draftVersion =
       typeof draftData.version === "number"
         ? draftData.version
@@ -1921,8 +1957,8 @@ export const exportAdminUiConfig = functions
     const backup = {
       schemaVersion: ADMIN_UI_CONFIG_SCHEMA_VERSION,
       timestamp: Date.now(),
-      draft: normalizeForExport(draftSnap.exists() ? draftSnap.data() : {}),
-      published: publishedSnap.exists()
+      draft: normalizeForExport(draftSnap.exists ? draftSnap.data() : {}),
+      published: publishedSnap.exists
         ? normalizeForExport(publishedSnap.data())
         : null,
     };
@@ -2001,6 +2037,11 @@ export const importAdminUiConfig = functions
       const publishedSnapshot = buildConfigSnapshot(
         backup.published as admin.firestore.DocumentData
       );
+      const publishedRaw = backup.published as Record<string, unknown>;
+      const publishedAtValue =
+        typeof publishedRaw.publishedAt === "number" ? publishedRaw.publishedAt : null;
+      const publishedByValue =
+        typeof publishedRaw.publishedBy === "string" ? publishedRaw.publishedBy : uid;
       const publishedPayload = {
         ...publishedSnapshot,
         version:
@@ -2011,9 +2052,9 @@ export const importAdminUiConfig = functions
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedBy: uid,
         publishedAt:
-          ensureTimestamp(backup.published.publishedAt) ??
+          ensureTimestamp(publishedAtValue) ??
           admin.firestore.FieldValue.serverTimestamp(),
-        publishedBy: backup.published.publishedBy ?? uid,
+        publishedBy: publishedByValue,
       };
       batch.set(publishedRef, publishedPayload, { merge: true });
     }
@@ -2037,6 +2078,8 @@ export const importAdminUiConfig = functions
 export const publishOverlayVersion = functions
   .region("us-central1")
   .https.onCall(async (data, context) => {
+    const action = "publishOverlayVersion";
+    requireAppCheck(context, action);
     const parsed = overlayPublishSchema.safeParse(data);
     if (!parsed.success) {
       throw new functions.https.HttpsError(
@@ -2045,8 +2088,8 @@ export const publishOverlayVersion = functions
       );
     }
 
-    const uid = await requireAdmin(context, "publishOverlayVersion");
-    enforceRateLimit(context, "publishOverlayVersion");
+    const uid = await requireAdmin(context, action);
+    enforceRateLimit(context, action);
 
     const { overlayId, versionId, note } = parsed.data;
     const versionRef = db
@@ -2123,6 +2166,8 @@ export const publishOverlayVersion = functions
 export const rollbackOverlayVersion = functions
   .region("us-central1")
   .https.onCall(async (data, context) => {
+    const action = "rollbackOverlayVersion";
+    requireAppCheck(context, action);
     const parsed = overlayRollbackSchema.safeParse(data);
     if (!parsed.success) {
       throw new functions.https.HttpsError(
@@ -2131,8 +2176,8 @@ export const rollbackOverlayVersion = functions
       );
     }
 
-    const uid = await requireAdmin(context, "rollbackOverlayVersion");
-    enforceRateLimit(context, "rollbackOverlayVersion");
+    const uid = await requireAdmin(context, action);
+    enforceRateLimit(context, action);
 
     const { overlayId, versionId } = parsed.data;
     const versionRef = db
@@ -2182,11 +2227,11 @@ export const integrationHealth = functions
   .https.onRequest(async (req, res) => {
     const action = "integration.health";
     try {
-      await ensureAppCheck(req, action);
+      await requireAppCheckRequest(req, action);
       await ensureAdminRequest(req, action);
       const now = new Date().toISOString();
-      const stripeStatus = (stripe ? "ok" : "down") as const;
-      const printfulStatus = (printfulKey ? "ok" : "down") as const;
+      const stripeStatus = stripe ? "ok" : "down";
+      const printfulStatus = printfulKey ? "ok" : "down";
       const mapboxStatus = "ok" as const;
 
       const payload = {
@@ -2204,7 +2249,8 @@ export const integrationHealth = functions
       };
       if (res.headersSent) return;
       res.set("Cache-Control", "private, no-store");
-      return res.status(200).json(payload);
+      res.status(200).json(payload);
+      return;
     } catch (error_1) {
       const error =
         error_1 instanceof functions.https.HttpsError
@@ -2212,8 +2258,59 @@ export const integrationHealth = functions
           : new functions.https.HttpsError("internal", "Erreur serveur");
       const status = mapHttpsErrorCodeToStatus(error.code);
       functions.logger.warn("[integrationHealth]", error);
-      return res.status(status).json({ error: error.message });
+      res.status(status).json({ error: error.message });
+      return;
     }
+  });
+
+export const cspReport = functions
+  .region("us-central1")
+  .https.onRequest((req, res) => {
+    if (req.method !== "POST") {
+      res.set("Allow", "POST");
+      res.status(405).send("Method Not Allowed");
+      return;
+    }
+
+    const payload = (req.body && typeof req.body === "object" ? req.body : {}) as Record<string, unknown>;
+    const rawReport = payload["csp-report"];
+    const report =
+      rawReport && typeof rawReport === "object"
+        ? (rawReport as Record<string, unknown>)
+        : payload;
+    const violatedDirective = asString(report["violatedDirective"]) ?? "unknown";
+    const blockedURI = asString(report["blockedURI"]) ?? asString(report["sourceFile"]) ?? "unknown";
+    const sourceFile = asString(report["sourceFile"]) ?? blockedURI;
+    const key = `${violatedDirective}|${blockedURI}|${sourceFile}`;
+
+    if (CSP_REPORT_SAMPLE_RATE < 1 && Math.random() > CSP_REPORT_SAMPLE_RATE) {
+      res.status(204).end();
+      return;
+    }
+    if (!shouldReportCspViolation(key)) {
+      res.status(204).end();
+      return;
+    }
+
+    functions.logger.info("[cspReport] Payload recorded", {
+      violatedDirective,
+      blockedURI,
+      sourceFile,
+    });
+
+    if (shouldInitSentry) {
+      Sentry.withScope((scope) => {
+        scope.setTag("feature", "csp-report");
+        scope.setTag("csp_directive", violatedDirective);
+        scope.setExtra("blocked_uri", blockedURI);
+        scope.setExtra("document_uri", asString(report["documentURI"]) ?? "unknown");
+        scope.setExtra("payload", report);
+        Sentry.captureMessage("CSP report forwarded", "warning");
+      });
+    }
+
+    res.status(204).end();
+    return;
   });
 
 export const printfulWebhook = functions
@@ -2268,7 +2365,7 @@ async function quarantineObject(
 }
 
 async function normalizeImageFile(
-  file: admin.storage.File,
+  file: File,
   object: functions.storage.ObjectMetadata
 ) {
   const tempDir = os.tmpdir();
@@ -2299,7 +2396,9 @@ export const sanitizeMediaUpload = functions
   .region("us-central1")
   .storage.object()
   .onFinalize(async (object) => {
-    if (!object.name || object.resourceState === "not_exists") return;
+    const resourceState =
+      (object as { resourceState?: string }).resourceState ?? null;
+    if (!object.name || resourceState === "not_exists") return;
     if (object.metadata?.normalized === "true") return;
     const contentType = object.contentType ?? "";
     const isImage = contentType.startsWith("image/");
@@ -2358,7 +2457,7 @@ async function sanitizeDocument(
   change: functions.Change<functions.firestore.DocumentSnapshot>,
   specs: SanitizationSpec[]
 ) {
-  if (!change.after.exists()) return;
+  if (!change.after.exists) return;
   const updates: Record<string, unknown> = {};
   for (const spec of specs) {
     const rawValue = change.after.get(spec.path);
@@ -2442,6 +2541,23 @@ export const sanitizePlaceContent = functions
   .firestore.document("places/{placeId}")
   .onWrite(async (change) => {
     await sanitizeDocument(change, PLACE_SANITIZE_SPECS);
+  });
+
+export const syncPlaceGeohash = functions
+  .region("us-central1")
+  .firestore.document("places/{placeId}")
+  .onWrite(async (change) => {
+    if (!change.after.exists) return;
+    const lat = change.after.get("lat");
+    const lng = change.after.get("lng");
+    if (typeof lat !== "number" || typeof lng !== "number") {
+      return;
+    }
+    const computed = computeGeohash(lat, lng);
+    if (!computed) return;
+    const current = change.after.get("geohash");
+    if (current === computed) return;
+    await change.after.ref.update({ geohash: computed });
   });
 
 export const sanitizePostContent = functions
@@ -2528,21 +2644,66 @@ async function createNotification(payload: NotificationPayload) {
     });
 }
 
-export const onFollowCreated = functions
+type FollowCounterField = "followersCount" | "followingCount";
+
+async function adjustFollowCount(
+  userId: string,
+  field: FollowCounterField,
+  delta: number
+) {
+  if (!userId) return;
+  await db
+    .collection("users")
+    .doc(userId)
+    .set(
+      {
+        [field]: admin.firestore.FieldValue.increment(delta),
+      },
+      { merge: true }
+    );
+}
+
+export const onFollowerDocumentCreated = functions
   .region("us-central1")
-  .firestore.document("follows/{followId}")
-  .onCreate(async (snap) => {
-    const data = snap.data();
-    const fromUid = data?.fromUid;
-    const toUid = data?.toUid;
-    if (!fromUid || !toUid || fromUid === toUid) return;
-    const actorSnapshot = await buildActorSnapshot(fromUid);
+  .firestore.document("users/{userId}/followers/{followerUid}")
+  .onCreate(async (_snap, context) => {
+    const { userId, followerUid } = context.params;
+    if (!userId || !followerUid || userId === followerUid) return;
+    await adjustFollowCount(userId, "followersCount", 1);
+    const actorSnapshot = await buildActorSnapshot(followerUid);
     await createNotification({
       type: "follow",
-      targetUserId: toUid,
-      actorId: fromUid,
+      targetUserId: userId,
+      actorId: followerUid,
       actorSnapshot,
     });
+  });
+
+export const onFollowerDocumentDeleted = functions
+  .region("us-central1")
+  .firestore.document("users/{userId}/followers/{followerUid}")
+  .onDelete(async (_snap, context) => {
+    const { userId } = context.params;
+    if (!userId) return;
+    await adjustFollowCount(userId, "followersCount", -1);
+  });
+
+export const onFollowingDocumentCreated = functions
+  .region("us-central1")
+  .firestore.document("users/{userId}/following/{targetUid}")
+  .onCreate(async (_snap, context) => {
+    const { userId, targetUid } = context.params;
+    if (!userId || !targetUid || userId === targetUid) return;
+    await adjustFollowCount(userId, "followingCount", 1);
+  });
+
+export const onFollowingDocumentDeleted = functions
+  .region("us-central1")
+  .firestore.document("users/{userId}/following/{targetUid}")
+  .onDelete(async (_snap, context) => {
+    const { userId } = context.params;
+    if (!userId) return;
+    await adjustFollowCount(userId, "followingCount", -1);
   });
 
 export const onPostReactionCreated = functions

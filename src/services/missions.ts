@@ -1,11 +1,12 @@
 import {
   collection,
-  onSnapshot,
+  
   orderBy,
   query,
   serverTimestamp,
   addDoc,
 } from "firebase/firestore";
+import { onSnapshot } from "../lib/firestoreHelpers";
 import { db } from "../lib/firebase";
 import { ensureWritesAllowed } from "../lib/securityGuard";
 

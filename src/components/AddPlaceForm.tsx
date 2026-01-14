@@ -8,6 +8,14 @@ import {
   submitSpotSubmission,
   type SpotSubmissionSource,
 } from "../services/spotSubmissions";
+import {
+  sanitizeText,
+  validateDescription,
+  validateLatLng,
+  validateTitle,
+} from "../lib/validation";
+import useInteractionPulse from "../hooks/useInteractionPulse";
+import { triggerHapticFeedback } from "../utils/haptics";
 
 type Props = {
   coords: { lat: number; lng: number };
@@ -45,6 +53,7 @@ export default function AddPlaceForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [submitPulseActive, triggerSubmitPulse] = useInteractionPulse(360);
   const [isProUser, setIsProUser] = useState(false);
   const [isGhost, setIsGhost] = useState(false);
   const [isLegend, setIsLegend] = useState(false);
@@ -105,14 +114,27 @@ export default function AddPlaceForm({
     setError(null);
     setSuccess(null);
 
-    if (!title.trim()) {
+    const titleError = validateTitle(title);
+    if (titleError) {
+      setError(titleError);
+      return;
+    }
+    const cleanTitle = sanitizeText(title);
+
+    const descError = validateDescription(description);
+    if (descError) {
+      setError(descError);
+      return;
+    }
+    const cleanDescription = sanitizeText(description);
+    if (cleanDescription.length < MIN_DESC_LENGTH) {
       setError("Titre ou description trop courts.");
       return;
     }
 
-    const desc = description.trim();
-    if (desc.length < MIN_DESC_LENGTH) {
-      setError("Titre ou description trop courts.");
+    const coordsError = validateLatLng(coords.lat, coords.lng);
+    if (coordsError) {
+      setError(coordsError);
       return;
     }
 
@@ -129,16 +151,18 @@ export default function AddPlaceForm({
           : "member"
         : "guest";
       const shortDescription =
-        desc.length > 120 ? `${desc.slice(0, 120).trim()}…` : desc;
+        cleanDescription.length > 120
+          ? `${cleanDescription.slice(0, 120).trim()}…`
+          : cleanDescription;
 
       await submitSpotSubmission({
         source,
         createdByUserId: user?.uid,
         createdByDisplayName: user?.displayName ?? undefined,
         createdByEmail: user?.email ?? undefined,
-        title: title.trim(),
+        title: cleanTitle,
         descriptionShort: shortDescription,
-        descriptionFull: desc,
+        descriptionFull: cleanDescription,
         category,
         riskLevel,
         access,
@@ -162,6 +186,8 @@ export default function AddPlaceForm({
           ? "Merci, ton spot est envoyé en attente de validation par notre équipe."
           : "Merci, ta proposition a bien été reçue ; l’équipe la validera manuellement."
       );
+      triggerSubmitPulse();
+      triggerHapticFeedback();
       setTitle("");
       setDescription("");
       setCategory("autre");
@@ -190,6 +216,7 @@ export default function AddPlaceForm({
       setLoading(false);
     }
   }
+  const submitButtonState = loading ? "loading" : success ? "success" : "idle";
   return (
     <div className="map-add-card">
       <div className="map-add-card-header">
@@ -470,8 +497,10 @@ export default function AddPlaceForm({
           </button>
           <button
             type="submit"
-            className="map-add-btn map-add-btn-primary"
+            className={`map-add-btn map-add-btn-primary${submitPulseActive ? " is-success" : ""}`}
             disabled={loading}
+            aria-busy={loading || undefined}
+            data-state={submitButtonState}
           >
             {loading
               ? "Envoi..."
