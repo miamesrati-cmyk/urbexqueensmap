@@ -16,6 +16,7 @@ type Props = {
   era?: EraBucket;
   onEraChange?: (era: EraBucket) => void;
   isPro?: boolean; // For PRO gating (Intelligence chip disabled if false)
+  isProLoading?: boolean; // Loading state to prevent chip flicker
 };
 
 const YEAR_PRESETS = [
@@ -48,6 +49,7 @@ export default function TimeRiftPanel({
   era = "all",
   onEraChange,
   isPro = false,
+  isProLoading = false,
 }: Props) {
   if (!active) return null;
 
@@ -90,17 +92,23 @@ export default function TimeRiftPanel({
         >
           ⏳ THEN/NOW
         </button>
-        {/* V4: INTELLIGENCE chip (feature flag gated, disabled if not PRO) */}
+        {/* V4: INTELLIGENCE chip (feature flag gated, disabled if not PRO or loading) */}
         {isIntelligenceModeEnabled() && (
           <button
             type="button"
-            className={`time-rift-mode ${mode === "intelligence" ? "active" : ""} ${!isPro ? "locked" : ""}`}
-            onClick={() => isPro && onModeChange("intelligence")}
+            className={`time-rift-mode ${mode === "intelligence" ? "active" : ""} ${!isPro || isProLoading ? "locked" : ""}`}
+            onClick={() => !isProLoading && isPro && onModeChange("intelligence")}
             aria-pressed={mode === "intelligence"}
-            disabled={!isPro}
-            title={!isPro ? "Intelligence Mode - PRO uniquement" : "Intelligence Mode - Analyse historique par ère"}
+            disabled={!isPro || isProLoading}
+            title={
+              isProLoading 
+                ? "Intelligence Mode - Chargement..." 
+                : !isPro 
+                  ? "Intelligence Mode - PRO uniquement" 
+                  : "Intelligence Mode - Analyse historique par ère"
+            }
           >
-            🧠 INTELLIGENCE {!isPro && "🔒"}
+            🧠 INTELLIGENCE {isProLoading ? "⏳" : !isPro ? "🔒" : ""}
           </button>
         )}
       </div>

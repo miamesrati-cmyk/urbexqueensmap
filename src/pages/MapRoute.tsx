@@ -188,6 +188,9 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
   // Déterminer le niveau utilisateur pour le filtrage des spots
   const userLevel: UserLevel = isPro ? "pro" : (user ? "member" : "guest");
   
+  // 🕰️ TIME RIFT V4: Loading state pour éviter flicker du chip Intelligence
+  const [isProLoading, setIsProLoading] = useState(true);
+  
   const [places, setPlaces] = useState<Place[]>([]);
   const [mapStyle, setMapStyle] = useState<MapStyleValue>("night");
   const [epicFilterActive, setEpicFilterActive] = useState(false);
@@ -327,6 +330,17 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
       }
     }
   }, [isPro, user]);
+
+  // 🕰️ TIME RIFT V4: Désactiver loading state après délai OU quand isPro change
+  useEffect(() => {
+    // Timeout 800ms pour éviter flicker si isPro arrive vite
+    const timer = setTimeout(() => {
+      setIsProLoading(false);
+    }, 800);
+
+    // Cleanup si isPro change avant timeout
+    return () => clearTimeout(timer);
+  }, [isPro]);
   
   // ═══════════════════════════════════════════════════════════════
   // UX FAIL-SAFE: Show toast when ROUTE activated, hide after 3s or first waypoint
@@ -3158,6 +3172,7 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
             era={timeRiftEra}
             onEraChange={handleEraChange}
             isPro={isPro}
+            isProLoading={isProLoading}
           />
           
           {editingLayoutActive ? (
