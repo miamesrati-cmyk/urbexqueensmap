@@ -67,13 +67,9 @@ export function getSpotYear(spot: Place): number | null {
     return spot.yearLastSeen;
   }
 
-  // 3. Dernier recours: createdAt (année d'ajout)
-  if (spot.createdAt && typeof spot.createdAt === "number") {
-    const date = new Date(spot.createdAt);
-    if (!isNaN(date.getTime())) {
-      return date.getFullYear();
-    }
-  }
+  // 3. PAS de fallback sur createdAt (pollue avec date d'ajout, pas date historique)
+  // Si pas de yearAbandoned/yearLastSeen → le spot est "unknown era"
+  // L'utilisateur devra ajouter manuellement une année estimée dans Firestore
 
   // 4. Pas de date historique exploitable
   return null;
