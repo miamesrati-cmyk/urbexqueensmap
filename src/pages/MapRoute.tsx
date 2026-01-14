@@ -100,7 +100,8 @@ import PerformanceControls from "../components/PerformanceControls";
 // 🕰️ TIME RIFT V4: Archive Intelligence helpers
 import {
   type EraBucket,
-  isIntelligenceModeEnabled as _isIntelligenceModeEnabled, // Not used yet (Step 3 UI)
+  isIntelligenceModeEnabled,
+  filterSpotsByBucket as _filterSpotsByBucket, // Step 4 (Overlay)
 } from "../utils/timeRiftIntelligence";
 import {
   getSpotTier,
@@ -244,11 +245,8 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
   const [historyYear, setHistoryYear] = useState(2025);
 
   // 🕰️ TIME RIFT V4: Archive Intelligence state (feature flag gated)
-  // Prefixed with _ to indicate "not yet used" (Step 2 only, UI in Step 3)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_timeRiftEra, setTimeRiftEra] = useState<EraBucket>("all");
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_timeRiftOverlayEnabled, setTimeRiftOverlayEnabled] = useState(false);
+  const [timeRiftEra, setTimeRiftEra] = useState<EraBucket>("all");
+  const [_timeRiftOverlayEnabled, setTimeRiftOverlayEnabled] = useState(false); // Step 4 (Overlay)
 
   // 🕰️ TIME RIFT: Memoize decay GeoJSON (avoid rebuild on every mode/year change)
   const decayGeoJSON = useMemo(() => {
@@ -2427,6 +2425,15 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
     }
   }, [mapInstance]);
 
+  // 🕰️ TIME RIFT V4: Era Change Handler
+  const handleEraChange = useCallback((era: EraBucket) => {
+    setTimeRiftEra(era);
+    
+    if (import.meta.env.DEV) {
+      console.log("[TIME RIFT][ERA] Changed to", era);
+    }
+  }, []);
+
   // 🕰️ TIME RIFT TOGGLE (PRO only)
   // ═══════════════════════════════════════════════════════════════
   // Anti-double-fire lock (prevent duplicate calls within same frame)
@@ -2902,6 +2909,11 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
             onModeChange={setHistoryMode}
             onYearChange={setHistoryYear}
             onClose={hardOffHistory}
+            // V4 NEW: Intelligence mode props
+            era={timeRiftEra}
+            onEraChange={handleEraChange}
+            showIntelligenceMode={isIntelligenceModeEnabled() && isPro}
+            isPro={isPro}
           />
           
           {editingLayoutActive ? (

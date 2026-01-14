@@ -1,6 +1,10 @@
 // TIME RIFT V4: Mode "intelligence" ajouté (feature flag gated)
 export type HistoryMode = "archives" | "decay" | "thenNow" | "intelligence";
 
+// V4: Import types for era control
+import type { EraBucket } from "../../utils/timeRiftIntelligence";
+import { bucketLabel } from "../../utils/timeRiftIntelligence";
+
 type Props = {
   active: boolean;
   mode: HistoryMode;
@@ -8,6 +12,11 @@ type Props = {
   onModeChange: (mode: HistoryMode) => void;
   onYearChange: (year: number) => void;
   onClose: () => void;
+  // V4 NEW: Intelligence mode props (optional, feature flag gated)
+  era?: EraBucket;
+  onEraChange?: (era: EraBucket) => void;
+  showIntelligenceMode?: boolean; // Feature flag passed from parent
+  isPro?: boolean; // For PRO gating pills
 };
 
 const YEAR_PRESETS = [
@@ -18,6 +27,17 @@ const YEAR_PRESETS = [
   { value: 2025, label: "NOW" },
 ];
 
+// V4: Era buckets for Intelligence mode
+const ERA_BUCKETS: EraBucket[] = [
+  "all",
+  "pre_1980",
+  "1980_1999",
+  "2000_2009",
+  "2010_2015",
+  "2016_2020",
+  "2021_plus",
+];
+
 export default function TimeRiftPanel({
   active,
   mode,
@@ -25,6 +45,11 @@ export default function TimeRiftPanel({
   onModeChange,
   onYearChange,
   onClose,
+  // V4 NEW:
+  era = "all",
+  onEraChange,
+  showIntelligenceMode = false,
+  isPro = false,
 }: Props) {
   if (!active) return null;
 
@@ -67,24 +92,57 @@ export default function TimeRiftPanel({
         >
           ⏳ THEN/NOW
         </button>
+        {/* V4: INTELLIGENCE chip (feature flag gated) */}
+        {showIntelligenceMode && (
+          <button
+            type="button"
+            className={`time-rift-mode ${mode === "intelligence" ? "active" : ""}`}
+            onClick={() => onModeChange("intelligence")}
+            aria-pressed={mode === "intelligence"}
+          >
+            🧠 INTELLIGENCE
+          </button>
+        )}
       </div>
 
-      <div className="time-rift-slider">
-        <label htmlFor="time-rift-year">📅</label>
-        <div className="time-rift-presets">
-          {YEAR_PRESETS.map((preset) => (
-            <button
-              key={preset.value}
-              type="button"
-              className={`time-rift-preset ${year === preset.value ? "active" : ""}`}
-              onClick={() => onYearChange(preset.value)}
-            >
-              {preset.label}
-            </button>
-          ))}
+      {/* V4: Conditional UI - Era Pills (intelligence) OR Year Slider (other modes) */}
+      {mode === "intelligence" ? (
+        <div className="time-rift-era-pills">
+          {ERA_BUCKETS.map((bucket) => {
+            const isDisabled = !isPro && bucket !== "all";
+            return (
+              <button
+                key={bucket}
+                type="button"
+                className={`era-pill ${era === bucket ? "active" : ""}`}
+                disabled={isDisabled}
+                onClick={() => onEraChange?.(bucket)}
+                aria-pressed={era === bucket}
+              >
+                {bucketLabel(bucket)}
+                {isDisabled && <span className="pro-badge">🔒 PRO</span>}
+              </button>
+            );
+          })}
         </div>
-        <span className="time-rift-year-display">{year}</span>
-      </div>
+      ) : (
+        <div className="time-rift-slider">
+          <label htmlFor="time-rift-year">📅</label>
+          <div className="time-rift-presets">
+            {YEAR_PRESETS.map((preset) => (
+              <button
+                key={preset.value}
+                type="button"
+                className={`time-rift-preset ${year === preset.value ? "active" : ""}`}
+                onClick={() => onYearChange(preset.value)}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          <span className="time-rift-year-display">{year}</span>
+        </div>
+      )}
 
       <div className="time-rift-hint">PRO • Accès aux couches d'archives</div>
     </div>

@@ -285,4 +285,81 @@
     font-size: 0.65rem;
     padding: 4px 6px;
   }
+
+  /* V4: Era pills mobile */
+  .time-rift-era-pills {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  
+  .era-pill {
+    font-size: 0.65rem;
+    padding: 4px 8px;
+  }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   TIME RIFT V4 - INTELLIGENCE MODE
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Era Pills Container */
+.time-rift-era-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  justify-content: center;
+}
+
+/* Individual Era Pill */
+.era-pill {
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease-out;
+  white-space: nowrap;
+}
+
+.era-pill:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Active state (selected era) */
+.era-pill.active {
+  background: rgba(255, 230, 180, 0.3);
+  border-color: rgba(255, 230, 180, 0.5);
+  box-shadow: 
+    0 0 12px rgba(255, 230, 180, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Disabled state (non-PRO users) */
+.era-pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* PRO Badge (lock icon) */
+.era-pill .pro-badge {
+  margin-left: 4px;
+  font-size: 10px;
+  color: #ffd700;
+  opacity: 0.8;
+}
+
+/* Era pill focus state (accessibility) */
+.era-pill:focus-visible {
+  outline: 2px solid rgba(255, 230, 180, 0.6);
+  outline-offset: 2px;
+}
+
