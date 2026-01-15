@@ -191,6 +191,18 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
     !user?.uid ? "free" : proLoading ? "loading" : isPro ? "pro" : "free";
   const { requireAuth } = useAuthUI();
   
+  // 🧪 DIAGNOSTIC: Verify proLoading resolves correctly (temporary)
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log("[PRO_STATUS]", { 
+        proLoading, 
+        isPro, 
+        uid: user?.uid?.slice(0, 8) + "...", 
+        proStatus 
+      });
+    }
+  }, [proLoading, isPro, user?.uid, proStatus]);
+  
   // Déterminer le niveau utilisateur pour le filtrage des spots
   const userLevel: UserLevel = isPro ? "pro" : (user ? "member" : "guest");
   
