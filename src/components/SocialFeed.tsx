@@ -98,6 +98,7 @@ function FeedPostTile({
   onReact,
   currentUserId,
   isGuest,
+  shouldBreathing,
 }: {
   post: Post;
   onOpen: (post: Post) => void;
@@ -109,6 +110,7 @@ function FeedPostTile({
   onReact: (emoji: string) => Promise<void>;
   currentUserId: string | null;
   isGuest: boolean;
+  shouldBreathing: boolean;
 }) {
   type CarouselMedia = CarouselMediaItem & { type: "image" | "video" };
   const mediaItems: CarouselMedia[] = useMemo(
@@ -150,6 +152,17 @@ function FeedPostTile({
     currentUserId && post.userReactions
       ? post.userReactions[currentUserId] ?? null
       : null;
+
+  const { ref, inView } = useInViewOnce<HTMLDivElement>();
+  const cardClassNames = [
+    "feed-post-card",
+    "uq-feed-post",
+    "uq-scrollreveal",
+    shouldBreathing ? "uq-breathing" : "",
+    inView ? "is-inview" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const renderCarouselImage = useCallback(
     (item: CarouselMediaItem, idx: number, isActive: boolean) => {
@@ -195,9 +208,10 @@ function FeedPostTile({
   return (
     <ViewTracker postId={post.id}>
       <div
+        ref={ref}
         role="button"
         tabIndex={0}
-        className="feed-post-card"
+        className={cardClassNames}
         onClick={() => onOpen(post)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
