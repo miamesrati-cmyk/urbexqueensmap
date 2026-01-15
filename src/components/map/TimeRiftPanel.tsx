@@ -15,8 +15,7 @@ type Props = {
   // V4 NEW: Intelligence mode props (optional, feature flag gated)
   era?: EraBucket;
   onEraChange?: (era: EraBucket) => void;
-  isPro?: boolean; // For PRO gating (Intelligence chip disabled if false)
-  isProLoading?: boolean; // Loading state to prevent chip flicker
+  proStatus?: "loading" | "pro" | "free"; // Tri-state for robust PRO gating
 };
 
 const YEAR_PRESETS = [
@@ -48,10 +47,13 @@ export default function TimeRiftPanel({
   // V4 NEW:
   era = "all",
   onEraChange,
-  isPro = false,
-  isProLoading = false,
+  proStatus = "loading",
 }: Props) {
   if (!active) return null;
+
+  // Derive booleans from tri-state for backward compat
+  const isPro = proStatus === "pro";
+  const isProLoading = proStatus === "loading";
 
   return (
     <div className="time-rift-panel">

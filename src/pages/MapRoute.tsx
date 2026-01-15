@@ -184,8 +184,8 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
   const isGuest = !user;
   const showProFilters = true; // Temporaire: activé pour tous pour tester
   
-  // 🕰️ TIME RIFT V4: PRO loading state (prevent flicker on chip appearance)
-  const [isProLoading, setIsProLoading] = useState(true);
+  // 🕰️ TIME RIFT V4: PRO status tri-state (robust, no arbitrary timer)
+  const [proStatus, setProStatus] = useState<"loading" | "pro" | "free">("loading");
   const { requireAuth } = useAuthUI();
   
   // Déterminer le niveau utilisateur pour le filtrage des spots
@@ -331,16 +331,32 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
     }
   }, [isPro, user]);
 
-  // 🕰️ TIME RIFT V4: Désactiver loading state après délai OU quand isPro change
+  // 🕰️ TIME RIFT V4: Tri-state PRO status (robust, no arbitrary timer)
+  // Resolves proStatus based on actual isPro state (from claims/Firestore)
   useEffect(() => {
-    // Timeout 800ms pour éviter flicker si isPro arrive vite
-    const timer = setTimeout(() => {
-      setIsProLoading(false);
-    }, 800);
+    let alive = true;
 
-    // Cleanup si isPro change avant timeout
-    return () => clearTimeout(timer);
-  }, [isPro]);
+    // Start in loading state when user changes
+    setProStatus("loading");
+
+    // Resolve PRO status asynchronously
+    // (useCurrentUserRole already handles claims/Firestore internally)
+    const resolveProStatus = async () => {
+      // Wait a microtask to let isPro settle from hook
+      await Promise.resolve();
+      
+      if (!alive) return;
+      
+      // Set final status based on isPro from hook
+      setProStatus(isPro ? "pro" : "free");
+    };
+
+    resolveProStatus();
+
+    return () => { 
+      alive = false; 
+    };
+  }, [user?.uid, isPro]); // Depend on user.uid (not isPro alone to avoid loops)
   
   // ═══════════════════════════════════════════════════════════════
   // UX FAIL-SAFE: Show toast when ROUTE activated, hide after 3s or first waypoint
@@ -3171,8 +3187,7 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
             // V4 NEW: Intelligence mode props
             era={timeRiftEra}
             onEraChange={handleEraChange}
-            isPro={isPro}
-            isProLoading={isProLoading}
+            proStatus={proStatus}
           />
           
           {editingLayoutActive ? (
