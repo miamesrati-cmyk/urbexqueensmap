@@ -81,6 +81,9 @@ export type Place = {
   lootTags?: string[];
   photos?: string[];
   geohash?: string;
+  // 🕰️ TIME RIFT: Historical data fields
+  yearAbandoned?: number | null;
+  yearLastSeen?: number | null;
 };
 
 export type PlaceCreateInput = Omit<Place, "id" | "createdAt">;
@@ -223,6 +226,12 @@ function buildPlaceFromRecord(
   const geohash =
     typeof x.geohash === "string" && x.geohash ? x.geohash : undefined;
   
+  // 🕰️ TIME RIFT: Historical year data
+  const yearAbandoned = 
+    typeof x.yearAbandoned === "number" ? x.yearAbandoned : null;
+  const yearLastSeen = 
+    typeof x.yearLastSeen === "number" ? x.yearLastSeen : null;
+  
   // Validation status (pour les spots soumis)
   const validationStatus = 
     (x.validationStatus === "pending" || x.validationStatus === "approved" || x.validationStatus === "rejected")
@@ -288,6 +297,8 @@ function buildPlaceFromRecord(
     archives,
     status,
     validationStatus,
+    yearAbandoned,
+    yearLastSeen,
   };
 }
 
