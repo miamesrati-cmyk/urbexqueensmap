@@ -183,13 +183,13 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
   const { user, isPro, isAdmin, role } = useCurrentUserRole();
   const isGuest = !user;
   const showProFilters = true; // Temporaire: activé pour tous pour tester
+  
+  // 🕰️ TIME RIFT V4: PRO loading state (prevent flicker on chip appearance)
+  const [isProLoading, setIsProLoading] = useState(true);
   const { requireAuth } = useAuthUI();
   
   // Déterminer le niveau utilisateur pour le filtrage des spots
   const userLevel: UserLevel = isPro ? "pro" : (user ? "member" : "guest");
-  
-  // 🕰️ TIME RIFT V4: Loading state pour éviter flicker du chip Intelligence
-  const [isProLoading, setIsProLoading] = useState(true);
   
   const [places, setPlaces] = useState<Place[]>([]);
   const [mapStyle, setMapStyle] = useState<MapStyleValue>("night");
