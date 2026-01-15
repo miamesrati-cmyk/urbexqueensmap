@@ -16,6 +16,11 @@ type Props = {
   era?: EraBucket;
   onEraChange?: (era: EraBucket) => void;
   proStatus?: "loading" | "pro" | "free"; // Tri-state for robust PRO gating
+  // 📜 ARCHIVES MODE (Option C): Raster controls
+  archivesOpacity?: number;
+  archivesSource?: "ohm" | "fallback";
+  onArchivesOpacityChange?: (opacity: number) => void;
+  onArchivesSourceChange?: (source: "ohm" | "fallback") => void;
 };
 
 const YEAR_PRESETS = [
@@ -48,6 +53,11 @@ export default function TimeRiftPanel({
   era = "all",
   onEraChange,
   proStatus = "loading",
+  // 📜 ARCHIVES MODE (Option C):
+  archivesOpacity = 0.55,
+  archivesSource = "ohm",
+  onArchivesOpacityChange,
+  onArchivesSourceChange,
 }: Props) {
   if (!active) return null;
 
@@ -156,6 +166,46 @@ export default function TimeRiftPanel({
             ))}
           </div>
           <span className="time-rift-year-display">{year}</span>
+        </div>
+      )}
+
+      {/* 📜 ARCHIVES MODE: Opacity slider + source switch */}
+      {mode === "archives" && (
+        <div className="archives-controls">
+          <div className="archives-control-row">
+            <label htmlFor="archives-opacity">Opacité</label>
+            <input
+              id="archives-opacity"
+              type="range"
+              min="0"
+              max="0.75"
+              step="0.05"
+              value={archivesOpacity}
+              onChange={(e) => onArchivesOpacityChange?.(parseFloat(e.target.value))}
+              className="archives-opacity-slider"
+            />
+            <span className="archives-opacity-value">{Math.round(archivesOpacity * 100)}%</span>
+          </div>
+          
+          <div className="archives-control-row">
+            <label>Source</label>
+            <div className="archives-source-switch">
+              <button
+                type="button"
+                className={`archives-source-btn ${archivesSource === "ohm" ? "active" : ""}`}
+                onClick={() => onArchivesSourceChange?.("ohm")}
+              >
+                Historique
+              </button>
+              <button
+                type="button"
+                className={`archives-source-btn ${archivesSource === "fallback" ? "active" : ""}`}
+                onClick={() => onArchivesSourceChange?.("fallback")}
+              >
+                Papier
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

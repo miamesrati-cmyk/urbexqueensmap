@@ -159,6 +159,11 @@ const TIME_RIFT_INTEL_SOURCE_ID = "uq-time-rift-intel";
 const TIME_RIFT_INTEL_HEATMAP_ID = "uq-time-rift-intel-heatmap";
 const TIME_RIFT_INTEL_GLOW_ID = "uq-time-rift-intel-glow";
 
+// 📜 ARCHIVES MODE (Option C): Raster overlay + archive cards
+const ARCHIVES_RASTER_SOURCE_OHM = "uq-archives-raster-ohm";
+const ARCHIVES_RASTER_SOURCE_FALLBACK = "uq-archives-raster-fallback";
+const ARCHIVES_RASTER_LAYER_ID = "uq-archives-raster-layer";
+
 // ═══════════════════════════════════════════════════════════════
 // ROUTE PLANNER: All interactive pin layers for click handlers
 // ═══════════════════════════════════════════════════════════════
@@ -273,7 +278,12 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
   const [timeRiftEra, setTimeRiftEra] = useState<EraBucket>("all");
   const [_timeRiftOverlayEnabled, setTimeRiftOverlayEnabled] = useState(false); // Step 4 (Overlay)
 
-  // 🕰️ TIME RIFT: Memoize decay GeoJSON (avoid rebuild on every mode/year change)
+  // � ARCHIVES MODE (Option C): Raster overlay + archive cards
+  const [archivesOpacity, setArchivesOpacity] = useState(0.55); // Default opacity
+  const [archivesSource, setArchivesSource] = useState<"ohm" | "fallback">("ohm");
+  const [archivesQueryPoint, setArchivesQueryPoint] = useState<{ lat: number; lng: number } | null>(null);
+
+  // �🕰️ TIME RIFT: Memoize decay GeoJSON (avoid rebuild on every mode/year change)
   const decayGeoJSON = useMemo(() => {
     return {
       type: "FeatureCollection" as const,
@@ -2084,6 +2094,59 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // 📜 ARCHIVES MODE (Option C): Raster overlay sources + layer
+    // ═══════════════════════════════════════════════════════════════
+    
+    // Source 1: OpenHistoricalMap (primary - instant "past" feeling)
+    if (!mapInstance.getSource(ARCHIVES_RASTER_SOURCE_OHM)) {
+      mapInstance.addSource(ARCHIVES_RASTER_SOURCE_OHM, {
+        type: "raster",
+        tiles: [
+          "https://tile.openhistoricalmap.org/{z}/{x}/{y}.png"
+        ],
+        tileSize: 256,
+        attribution: '© <a href="https://www.openhistoricalmap.org/">OpenHistoricalMap</a> contributors'
+      });
+      if (import.meta.env.DEV) {
+        console.log("[INIT] Created ARCHIVES raster source (OHM)");
+      }
+    }
+
+    // Source 2: Fallback (aesthetic/paper style) - Using Stamen Toner Lite for archive feel
+    if (!mapInstance.getSource(ARCHIVES_RASTER_SOURCE_FALLBACK)) {
+      mapInstance.addSource(ARCHIVES_RASTER_SOURCE_FALLBACK, {
+        type: "raster",
+        tiles: [
+          "https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}.png"
+        ],
+        tileSize: 256,
+        attribution: '© <a href="https://stadiamaps.com/">Stadia Maps</a>, © <a href="https://stamen.com/">Stamen Design</a>'
+      });
+      if (import.meta.env.DEV) {
+        console.log("[INIT] Created ARCHIVES raster source (fallback)");
+      }
+    }
+
+    // Raster layer (create once, toggle visibility)
+    // Order: base map → archives raster → overlays (intel/decay) → pins
+    if (!mapInstance.getLayer(ARCHIVES_RASTER_LAYER_ID)) {
+      mapInstance.addLayer({
+        id: ARCHIVES_RASTER_LAYER_ID,
+        type: "raster",
+        source: ARCHIVES_RASTER_SOURCE_OHM, // Default source
+        layout: {
+          visibility: "none" // Hidden by default
+        },
+        paint: {
+          "raster-opacity": 0.55 // Default opacity
+        }
+      }, "spots-circle"); // Insert before spots layer to stay below pins
+      if (import.meta.env.DEV) {
+        console.log("[INIT] Created ARCHIVES raster layer");
+      }
+    }
+
     // ✅ Verify sources exist (mandatory)
     const clusterSourceExists = !!mapInstance.getSource(CLUSTER_SOURCE_ID);
     const plainSourceExists = !!mapInstance.getSource(PLAIN_SOURCE_ID);
@@ -2647,6 +2710,58 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
   }, [mapInstance, historyMode, historyActive, isPro, timeRiftEra, places, layersVersion]);
   // ↑ layersVersion ensures re-run after style.load
 
+  // ═══════════════════════════════════════════════════════════════
+  // 📜 ARCHIVES MODE: Raster overlay visibility + opacity control
+  // ═══════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!mapInstance) return;
+    if (!layersReadyRef.current) return;
+
+    const archivesLayer = mapInstance.getLayer(ARCHIVES_RASTER_LAYER_ID);
+    if (!archivesLayer) return;
+
+    const shouldShowArchives = historyActive && historyMode === "archives";
+
+    if (shouldShowArchives) {
+      // Show archives raster overlay
+      mapInstance.setLayoutProperty(ARCHIVES_RASTER_LAYER_ID, "visibility", "visible");
+      
+      // Update source based on selected option
+      const currentSource = mapInstance.getLayer(ARCHIVES_RASTER_LAYER_ID)?.source;
+      const targetSource = archivesSource === "ohm" ? ARCHIVES_RASTER_SOURCE_OHM : ARCHIVES_RASTER_SOURCE_FALLBACK;
+      
+      if (currentSource !== targetSource) {
+        // Remove and recreate layer with new source
+        mapInstance.removeLayer(ARCHIVES_RASTER_LAYER_ID);
+        mapInstance.addLayer({
+          id: ARCHIVES_RASTER_LAYER_ID,
+          type: "raster",
+          source: targetSource,
+          layout: {
+            visibility: "visible"
+          },
+          paint: {
+            "raster-opacity": archivesOpacity
+          }
+        }, "spots-circle");
+      } else {
+        // Just update opacity
+        mapInstance.setPaintProperty(ARCHIVES_RASTER_LAYER_ID, "raster-opacity", archivesOpacity);
+      }
+
+      if (import.meta.env.DEV) {
+        console.log("[ARCHIVES] Overlay visible |", "source:", archivesSource, "| opacity:", archivesOpacity);
+      }
+    } else {
+      // Hide archives overlay
+      mapInstance.setLayoutProperty(ARCHIVES_RASTER_LAYER_ID, "visibility", "none");
+      
+      if (import.meta.env.DEV) {
+        console.log("[ARCHIVES] Overlay hidden");
+      }
+    }
+  }, [mapInstance, historyActive, historyMode, archivesOpacity, archivesSource, layersVersion]);
+
   // 🕰️ TIME RIFT HARD OFF (centralized cleanup)
   // ═══════════════════════════════════════════════════════════════
   // All exit paths MUST use this function:
@@ -3176,6 +3291,11 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
             era={timeRiftEra}
             onEraChange={handleEraChange}
             proStatus={proStatus}
+            // 📜 ARCHIVES MODE (Option C): Raster controls
+            archivesOpacity={archivesOpacity}
+            archivesSource={archivesSource}
+            onArchivesOpacityChange={setArchivesOpacity}
+            onArchivesSourceChange={setArchivesSource}
           />
           
           {editingLayoutActive ? (

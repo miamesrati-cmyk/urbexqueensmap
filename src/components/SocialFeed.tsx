@@ -51,6 +51,7 @@ import type { MediaItem as CarouselMediaItem } from "./feed/interactions/ImageCa
 import { AutoPlayVideo } from "./feed/interactions/AutoPlayVideo";
 import { ViewTracker } from "./feed/interactions/ViewTracker";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
+import { useInViewOnce } from "../hooks/useInViewOnce";
 
 type ReactionHandler = (emoji: string) => void;
 
