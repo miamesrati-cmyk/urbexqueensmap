@@ -155,20 +155,33 @@
   color: rgba(255, 74, 138, 0.9);
 }
 
-/* 🎯 Signature élite (backroom vibe) */
+/* 🎯 Signature élite (backroom vibe - premium) */
 .time-rift-signature {
-  margin: 16px 0 20px 0;
-  text-align: center;
-}
+  margin: 10px 0 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
 
-.time-rift-signature p {
-  margin: 0;
-  font-size: 0.85rem;
+  /* pas de "box lourde", juste une présence */
+  background: linear-gradient(
+    90deg,
+    rgba(0, 255, 255, 0.08),
+    rgba(0, 0, 0, 0)
+  );
+
+  font-size: 0.95rem;
   font-weight: 300;
   font-style: italic;
-  color: rgba(255, 255, 255, 0.72);
-  letter-spacing: 0.03em;
-  text-shadow: 0 0 8px rgba(74, 244, 255, 0.15);
+  letter-spacing: 0.06em;
+
+  color: rgba(255, 255, 255, 0.74);
+
+  /* glow subtil, pas néon cheap */
+  text-shadow:
+    0 0 12px rgba(0, 255, 255, 0.18),
+    0 0 2px rgba(0, 255, 255, 0.12);
+
+  /* "signature", pas un label */
+  display: inline-block;
 }
 
 /* Modes (3 buttons) */

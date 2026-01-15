@@ -69,10 +69,8 @@ export default function TimeRiftPanel({
         </button>
       </div>
 
-      {/* 🎯 Signature élite: Time Rift as hidden layer */}
-      <div className="time-rift-signature">
-        <p>Le backroom de la carte.</p>
-      </div>
+      {/* 🎯 Signature élite: backroom vibe */}
+      <div className="time-rift-signature">Le backroom de la carte.</div>
 
       <div className="time-rift-modes">
         <button
