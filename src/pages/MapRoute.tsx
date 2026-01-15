@@ -78,6 +78,7 @@ import {
 } from "../services/userPlaces";
 import { awardXpForEvent } from "../services/gamification";
 import { useCurrentUserRole } from "../hooks/useCurrentUserRole";
+import { useProStatus } from "../contexts/ProStatusContext";
 import useInteractionPulse from "../hooks/useInteractionPulse";
 import { useLayoutEditMode } from "../hooks/useLayoutEditMode";
 import { useOptimisticAction } from "../hooks/useOptimisticAction";
@@ -181,11 +182,13 @@ const TIER_LABELS: Record<SpotTier, string> = {
 
 export default function MapRoute({ nightVisionActive }: MapRouteProps) {
   const { user, isPro, isAdmin, role } = useCurrentUserRole();
+  const { proLoading } = useProStatus(); // ✅ Get real loading state from context
   const isGuest = !user;
   const showProFilters = true; // Temporaire: activé pour tous pour tester
   
-  // 🕰️ TIME RIFT V4: PRO status tri-state (robust, no arbitrary timer)
-  const [proStatus, setProStatus] = useState<"loading" | "pro" | "free">("loading");
+  // 🕰️ TIME RIFT V4: PRO status tri-state (pure derivation, no flicker)
+  const proStatus: "loading" | "pro" | "free" =
+    !user?.uid ? "free" : proLoading ? "loading" : isPro ? "pro" : "free";
   const { requireAuth } = useAuthUI();
   
   // Déterminer le niveau utilisateur pour le filtrage des spots
@@ -331,33 +334,6 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
     }
   }, [isPro, user]);
 
-  // 🕰️ TIME RIFT V4: Tri-state PRO status (robust, no arbitrary timer)
-  // Resolves proStatus based on actual isPro state (from claims/Firestore)
-  useEffect(() => {
-    let alive = true;
-
-    // Start in loading state when user changes
-    setProStatus("loading");
-
-    // Resolve PRO status asynchronously
-    // (useCurrentUserRole already handles claims/Firestore internally)
-    const resolveProStatus = async () => {
-      // Wait a microtask to let isPro settle from hook
-      await Promise.resolve();
-      
-      if (!alive) return;
-      
-      // Set final status based on isPro from hook
-      setProStatus(isPro ? "pro" : "free");
-    };
-
-    resolveProStatus();
-
-    return () => { 
-      alive = false; 
-    };
-  }, [user?.uid, isPro]); // Depend on user.uid (not isPro alone to avoid loops)
-  
   // ═══════════════════════════════════════════════════════════════
   // UX FAIL-SAFE: Show toast when ROUTE activated, hide after 3s or first waypoint
   // ═══════════════════════════════════════════════════════════════
