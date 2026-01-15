@@ -69,12 +69,9 @@ export default function TimeRiftPanel({
         </button>
       </div>
 
-      {/* 🎯 Narrative Foundation: Explain Time Rift in 5 seconds */}
-      <div className="time-rift-description">
-        <p>
-          Explore les couches invisibles du territoire :<br />
-          mémoire, abandon, transformation.
-        </p>
+      {/* 🎯 Signature élite: Time Rift as hidden layer */}
+      <div className="time-rift-signature">
+        <p>Le backroom de la carte.</p>
       </div>
 
       <div className="time-rift-modes">
