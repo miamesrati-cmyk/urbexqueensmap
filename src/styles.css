@@ -34794,3 +34794,162 @@ Preset “Sobre luxe” (copy block to switch):
     padding: 7px 9px;
   }
 }
+
+/* ==============================
+   📊 INTELLIGENCE LEGEND (TIME RIFT)
+   Data insights overlay
+   ============================== */
+
+.uq-intel-legend {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 30;
+  width: 188px;
+  border-radius: 14px;
+  padding: 10px 10px 9px;
+  background: rgba(18, 16, 28, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(138, 43, 226, 0.20);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.30), 0 0 20px rgba(138, 43, 226, 0.15);
+  color: rgba(255, 255, 255, 0.92);
+  user-select: none;
+}
+
+.uq-intel-legend__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.uq-intel-legend__title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.95;
+  color: rgba(138, 43, 226, 1);
+}
+
+.uq-intel-legend__info {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: help;
+  background: rgba(138, 43, 226, 0.12);
+  border: 1px solid rgba(138, 43, 226, 0.20);
+  transition: all 160ms ease;
+}
+
+.uq-intel-legend__info:hover {
+  background: rgba(138, 43, 226, 0.20);
+  border-color: rgba(138, 43, 226, 0.35);
+  transform: scale(1.08);
+}
+
+.uq-intel-legend__info::after {
+  content: attr(data-tip);
+  position: absolute;
+  right: 0;
+  bottom: 28px;
+  width: 220px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(10, 8, 18, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(138, 43, 226, 0.25);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 500;
+  text-align: left;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+  z-index: 100;
+}
+
+.uq-intel-legend__info:hover::after,
+.uq-intel-legend__info:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uq-intel-legend__info:focus-visible {
+  outline: 2px solid rgba(138, 43, 226, 0.6);
+  outline-offset: 2px;
+}
+
+.uq-intel-legend__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.uq-intel-legend__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  opacity: 0.92;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.uq-intel-legend__label-key {
+  font-weight: 700;
+  opacity: 0.7;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.uq-intel-legend__label-value {
+  font-weight: 600;
+  color: rgba(138, 43, 226, 1);
+  font-size: 12px;
+}
+
+/* Mobile optimization */
+@media (max-width: 768px) {
+  .uq-intel-legend {
+    left: 8px;
+    bottom: 8px;
+    width: 170px;
+    padding: 8px;
+  }
+  
+  .uq-intel-legend__title {
+    font-size: 11px;
+  }
+  
+  .uq-intel-legend__row {
+    font-size: 11px;
+  }
+  
+  .uq-intel-legend__label-key {
+    font-size: 9px;
+  }
+  
+  .uq-intel-legend__label-value {
+    font-size: 11px;
+  }
+  
+  .uq-intel-legend__info::after {
+    width: 200px;
+    font-size: 11px;
+    padding: 7px 9px;
+  }
+}
