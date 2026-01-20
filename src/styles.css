@@ -34624,3 +34624,122 @@ Preset “Sobre luxe” (copy block to switch):
     filter: none;
   }
 }
+
+/* ==============================
+   🔥 DECAY LEGEND (TIME RIFT)
+   Option B: Bottom-left overlay
+   ============================== */
+
+.uq-decay-legend {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 30;
+  width: 176px;
+  border-radius: 14px;
+  padding: 10px 10px 9px;
+  background: rgba(18, 16, 28, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.30);
+  color: rgba(255, 255, 255, 0.92);
+  user-select: none;
+}
+
+.uq-decay-legend__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.uq-decay-legend__title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.95;
+}
+
+.uq-decay-legend__info {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: help;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: all 160ms ease;
+}
+
+.uq-decay-legend__info:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.20);
+  transform: scale(1.08);
+}
+
+.uq-decay-legend__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.uq-decay-legend__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  opacity: 0.92;
+}
+
+.uq-decay-legend__swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
+}
+
+.uq-decay-legend__swatch--high {
+  background: rgba(139, 0, 0, 0.92);
+}
+
+.uq-decay-legend__swatch--mid {
+  background: rgba(255, 69, 0, 0.84);
+}
+
+.uq-decay-legend__swatch--low {
+  background: rgba(138, 43, 226, 0.78);
+}
+
+.uq-decay-legend__label {
+  line-height: 1;
+}
+
+/* Mobile optimization */
+@media (max-width: 768px) {
+  .uq-decay-legend {
+    left: 8px;
+    bottom: 8px;
+    width: 160px;
+    padding: 8px;
+  }
+  
+  .uq-decay-legend__title {
+    font-size: 11px;
+  }
+  
+  .uq-decay-legend__row {
+    font-size: 11px;
+  }
+  
+  .uq-decay-legend__swatch {
+    width: 12px;
+    height: 12px;
+  }
+}
