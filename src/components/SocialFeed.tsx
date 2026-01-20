@@ -62,7 +62,7 @@ type FeedMode = "all" | "following" | "mine";
 const FEED_IMAGE_SIZES = "(max-width: 900px) 92vw, 560px";
 const AVATAR_FEED = 32;
 const STORY_BUBBLE = 64;
-const MODAL_IMAGE_SIZES = "(max-width: 900px) 100vw, 900px";
+// const MODAL_IMAGE_SIZES = "(max-width: 900px) 100vw, 900px"; // Unused - reserved for future modal layouts
 const AVATAR_MODAL = 40;
 const AVATAR_COMMENT = 28;
 
@@ -148,6 +148,7 @@ function FeedPostTile({
   currentUserId,
   isGuest,
   shouldBreathing,
+  revealDelay,
 }: {
   post: Post;
   onOpen: (post: Post) => void;
@@ -160,6 +161,7 @@ function FeedPostTile({
   currentUserId: string | null;
   isGuest: boolean;
   shouldBreathing: boolean;
+  revealDelay?: number;
 }) {
   type CarouselMedia = CarouselMediaItem & { type: "image" | "video" };
   const mediaItems: CarouselMedia[] = useMemo(
@@ -210,6 +212,8 @@ function FeedPostTile({
   const cardClassNames = [
     "feed-post-card",
     "uq-feed-post",
+    "uq-relic",
+    "uq-reveal",
     "uq-scrollreveal",
     shouldBreathing ? "uq-breathing" : "",
     inView ? "is-inview" : "",
@@ -288,6 +292,9 @@ function FeedPostTile({
     ]
   );
 
+  const revealStyle =
+    revealDelay != null ? { animationDelay: `${revealDelay}ms` } : undefined;
+
   return (
     <ViewTracker postId={post.id}>
       <div
@@ -295,6 +302,7 @@ function FeedPostTile({
         role="button"
         tabIndex={0}
         className={cardClassNames}
+        style={revealStyle}
         onClick={() => onOpen(post)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -304,29 +312,29 @@ function FeedPostTile({
         }}
         aria-label="Ouvrir le post urbex"
       >
-        <header className="feed-post-card-header">
-        <div className="feed-card-avatar">
-          <AvatarBubble
-            avatarUrl={post.authorAvatar}
-            alt={authorName}
-            size={AVATAR_FEED}
-            wrapperClassName="uq-avatar-wrap"
-          />
-        </div>
-        <div className="feed-card-meta">
+        <header className="feed-post-card-header uq-post-header">
+          <div className="feed-card-avatar">
+            <AvatarBubble
+              avatarUrl={post.authorAvatar}
+              alt={authorName}
+              size={AVATAR_FEED}
+              wrapperClassName="uq-avatar-wrap"
+            />
+          </div>
+        <div className="feed-card-meta uq-post-meta">
           <div className="feed-card-name-row">
-            <strong className="feed-card-name">{authorName}</strong>
+            <strong className="feed-card-name uq-post-author">{authorName}</strong>
             {isProAuthor && <span className="feed-card-pro">PRO</span>}
           </div>
           <div className={emotionClassNames.join(" ")}>{emotionLabel}</div>
-          <span className="feed-card-time">{timestamp}</span>
+          <span className="feed-card-time uq-post-time">{timestamp}</span>
           {locationLabel && (
-            <span className="feed-card-sub">{locationLabel}</span>
+            <span className="feed-card-sub uq-post-location">{locationLabel}</span>
           )}
         </div>
       </header>
 
-      <div className="feed-post-media">
+      <div className="feed-post-media uq-post-media">
         {mediaItems.length > 1 ? (
           <ImageCarousel
             media={carouselBase}
@@ -369,7 +377,7 @@ function FeedPostTile({
         )}
       </div>
 
-      <div className="feed-post-actions">
+      <div className="feed-post-actions uq-post-actions">
         <QuickReactions
           postId={post.id}
           currentReaction={currentReaction}
@@ -385,10 +393,13 @@ function FeedPostTile({
             aria-pressed={!!currentReaction}
             disabled={isGuest}
           >
-            {currentReaction || "🤍"} {reactionTotal}
+            {currentReaction || "🤍"}
+            <span className="uq-action-count" aria-hidden="true">
+              {reactionTotal}
+            </span>
           </button>
         </QuickReactions>
-        <span>💬 {commentCount}</span>
+        <span className="uq-action-count">💬 {commentCount}</span>
         <SaveButton
           postId={post.id}
           initialSaved={isSaved}
@@ -399,7 +410,7 @@ function FeedPostTile({
       </div>
 
       <div className="feed-caption-block">
-        <p className="feed-caption-line">{captionText}</p>
+        <p className="feed-caption-line uq-post-caption">{captionText}</p>
         <button
           type="button"
           className="feed-caption-more"
@@ -461,7 +472,8 @@ const MemoizedFeedPostTile = memo(FeedPostTile, (prev, next) => {
     prev.isSaved === next.isSaved &&
     prev.isLiked === next.isLiked &&
     prev.currentUserId === next.currentUserId &&
-    prev.shouldBreathing === next.shouldBreathing
+    prev.shouldBreathing === next.shouldBreathing &&
+    prev.revealDelay === next.revealDelay
   );
 });
 
@@ -898,6 +910,11 @@ export default function SocialFeed() {
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const commentRequests = useRef<Map<string, { active: boolean }>>(new Map());
   const placesCursorCache = useRef(new Map<string, PlacesPageCursor | null>());
+  
+  // ✅ Move isProUser declaration BEFORE placesCursorKey (which uses it)
+  const currentProfile = useLiveUserProfile(user?.uid ?? null);
+  const isProUser = currentProfile?.isPro ?? false;
+  
   const placesCursorKey = useMemo(
     () => `places:${isProUser ? "pro" : "free"}:${PLACES_PAGE_SIZE}`,
     [isProUser]
@@ -918,8 +935,6 @@ export default function SocialFeed() {
   const toast = useToast();
   const storyFileInputRef = useRef<HTMLInputElement | null>(null);
   const postFileInputRef = useRef<HTMLInputElement | null>(null);
-  const currentProfile = useLiveUserProfile(user?.uid ?? null);
-  const isProUser = currentProfile?.isPro ?? false;
   const isGuest = !user;
   const { requireAuth } = useAuthUI();
   const composerAuthorName =
@@ -1915,7 +1930,8 @@ export default function SocialFeed() {
     <div className="feed-shell" ref={attachFeedSurface}>
       <PullToRefreshIndicator pullDistance={feedPullDistance} status={feedPullStatus} />
       <div className="social-feed-inner">
-        <header className="social-feed-header">
+        <header className="social-feed-header uq-feed-header">
+          <div className="uq-feed-header-grain" />
           <div className="social-feed-title-row">
             <span className="social-feed-label">URBEXQUEENS FEED</span>
             <strong className="social-feed-title">Explorer sans bruit</strong>
@@ -2080,6 +2096,7 @@ export default function SocialFeed() {
                 onReact={(emoji) => handleReactPost(post.id, emoji)}
                 currentUserId={userUid}
                 isGuest={isGuest}
+                revealDelay={idx < 5 ? 40 * (idx + 1) : undefined}
                 shouldBreathing={post.authorIsPro || idx < 3}
               />
             ))}

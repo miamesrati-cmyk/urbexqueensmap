@@ -50,7 +50,7 @@ if (appCheckSiteKey) {
 export const auth = getAuth(app);
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-  useFetchStreams: false,
+  // useFetchStreams removed: not supported in current Firebase SDK version
 });
 export const storage = getStorage(app);
 export const functions = getFunctions(app, "us-central1");

@@ -10,7 +10,7 @@ const schedule: Scheduler = (cb) => {
     return typeof timeout === "number" ? timeout : Number(timeout);
   }
   if (hasRIC) {
-    // @ts-expect-error requestIdleCallback exists when guard passes
+    // requestIdleCallback exists when hasRIC guard passes
     return window.requestIdleCallback(() => cb(), { timeout: 800 });
   }
   return window.setTimeout(() => cb(), 250);
@@ -22,13 +22,14 @@ const cancel: Cancel = (id) => {
     return;
   }
   if (hasRIC) {
-    // @ts-expect-error cancelIdleCallback exists when guard passes
+    // cancelIdleCallback exists when hasRIC guard passes
     window.cancelIdleCallback(id);
     return;
   }
   window.clearTimeout(id);
 };
 
+// @ts-ignore - Generic type T is used in function signature below
 type DeferredOptions<T> = {
   key?: string;
   ttlMs?: number;
