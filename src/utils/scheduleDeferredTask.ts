@@ -29,7 +29,7 @@ const cancel: Cancel = (id) => {
   window.clearTimeout(id);
 };
 
-// @ts-ignore - Generic type T is used in function signature below
+// @ts-ignore - Generic type _T is used in function signature below
 type DeferredOptions<_T> = {
   key?: string;
   ttlMs?: number;
@@ -37,7 +37,7 @@ type DeferredOptions<_T> = {
   immediateIfCached?: boolean;
 };
 
-type CacheEntry<_T> = { value: T; expiresAt: number };
+type CacheEntry<_T> = { value: _T; expiresAt: number };
 
 const pendingByKey = new Map<string, Promise<any>>();
 const timerByKey = new Map<string, number>();
