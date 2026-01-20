@@ -4,7 +4,12 @@ import { onSnapshot } from "../lib/firestoreHelpers";
 
 type MapLayoutZoneKey = "top" | "left" | "right" | "bottomRight" | "floating";
 
-type MapLayoutBlockId = "search" | "proBar" | "hostBadge" | "spotHandle";
+type MapLayoutBlockId =
+  | "search"
+  | "proBar"
+  | "hostBadge"
+  | "spotHandle"
+  | "storyBubble";
 
 type MapLayoutZones = Record<MapLayoutZoneKey, MapLayoutBlockId[]>;
 
@@ -18,7 +23,7 @@ const ADMIN_LAYOUT_DOC = doc(db, "adminConfig", "layouts");
 
 const DEFAULT_LAYOUT: MapLayoutZones = {
   top: ["search", "proBar"],
-  left: [],
+  left: ["storyBubble"],
   right: ["hostBadge"],
   bottomRight: ["spotHandle"],
   floating: [],
