@@ -1191,6 +1191,425 @@ body,
   align-items: center;
 }
 
+/* ==============================
+   STORY COMPOSER + MODAL (UQ)
+   ============================== */
+
+.uq-story-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+}
+
+.uq-story-file-input {
+  display: none;
+}
+
+.uq-story-bubble {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 8, 14, 0.45);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+  transition: transform 160ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  cursor: pointer;
+}
+
+.uq-story-bubble .uq-story-add {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(220, 80, 255, 0.95);
+  border: 2px solid rgba(8, 7, 12, 0.9);
+  color: rgba(0, 0, 0, 0.85);
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+  font-size: 16px;
+}
+
+@media (hover:hover) and (pointer:fine) {
+  .uq-story-bubble:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 18px 55px rgba(0, 0, 0, 0.65), 0 0 22px rgba(220, 80, 255, 0.1);
+  }
+
+  .uq-tool-chip:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55), 0 0 18px rgba(220, 80, 255, 0.1);
+  }
+
+  .uq-story-status-option:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 14px 45px rgba(0, 0, 0, 0.55), 0 0 18px rgba(220, 80, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
+  }
+}
+
+.uq-story-entry-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.uq-story-entry-name {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.uq-story-entry-meta .uq-story-status-mini {
+  margin-top: 4px;
+}
+
+.uq-story-view-label {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #0a080e;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+}
+
+.uq-story-status-mini {
+  margin-top: 8px;
+  font-size: 0.65rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.uq-story-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 3, 10, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+  padding: 24px;
+}
+
+.uq-story-modal {
+  width: min(640px, 98vw);
+  max-height: 92vh;
+}
+
+.uq-story-editor {
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 24px;
+  background: rgba(6, 5, 14, 0.92);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.65);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.uq-story-editor-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.uq-story-editor-close,
+.uq-story-editor-publish {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.18s ease;
+}
+
+.uq-story-editor-close {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.uq-story-editor-publish {
+  background: linear-gradient(135deg, rgba(220, 80, 255, 0.95), rgba(255, 130, 244, 0.9));
+  color: #0a080e;
+  position: relative;
+  min-width: 120px;
+  justify-content: center;
+}
+
+.uq-story-editor-preview {
+  position: relative;
+  min-height: 320px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+  background: rgba(8, 8, 16, 0.85);
+}
+
+.uq-story-editor-preview img,
+.uq-story-editor-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.uq-story-preview-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.uq-story-stamp {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 8, 14, 0.55);
+  backdrop-filter: blur(10px);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  letter-spacing: 0.25px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 16px 55px rgba(0, 0, 0, 0.55);
+}
+
+.uq-story-stamp::before {
+  content: \"◉\";
+  font-size: 12px;
+  color: rgba(220, 80, 255, 0.85);
+  animation: uqStampPulse 2.8s ease-in-out infinite;
+}
+
+@keyframes uqStampPulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uq-story-stamp::before {
+    animation: none;
+  }
+}
+
+.uq-story-pill {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(10, 8, 14, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  letter-spacing: 0.25px;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+}
+
+.uq-story-sticker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  user-select: none;
+  cursor: grab;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(0, 0, 0, 0.65);
+}
+
+.uq-story-sticker:active {
+  cursor: grabbing;
+}
+
+.uq-story-text {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.uq-story-emoji {
+  font-size: 32px;
+}
+
+.uq-story-tools {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.uq-tool-chip {
+  border-radius: 999px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 8, 14, 0.45);
+  backdrop-filter: blur(10px);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  letter-spacing: 0.25px;
+  text-transform: uppercase;
+  font-weight: 600;
+  transition: transform 160ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.uq-tool-chip.is-active {
+  border-color: rgba(220, 80, 255, 0.35);
+  box-shadow: 0 0 26px rgba(220, 80, 255, 0.16);
+}
+
+.uq-story-status-panel {
+  width: min(520px, 92%);
+  margin: 0 auto;
+  padding: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 8, 14, 0.55);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 65px rgba(0, 0, 0, 0.6);
+  display: grid;
+  gap: 8px;
+}
+
+.uq-story-status-option {
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  letter-spacing: 0.25px;
+  text-transform: uppercase;
+}
+
+.uq-story-status-option.is-active {
+  border-color: rgba(220, 80, 255, 0.35);
+  box-shadow: 0 0 26px rgba(220, 80, 255, 0.16);
+  background: rgba(220, 80, 255, 0.1);
+}
+
+.uq-story-location input {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-size: 0.95rem;
+  padding: 10px 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.uq-danger {
+  width: min(520px, 92%);
+  margin: 0 auto;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 8, 14, 0.45);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 16px 55px rgba(0, 0, 0, 0.55);
+}
+
+.uq-danger-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.25px;
+  margin-bottom: 10px;
+}
+
+.uq-danger-ico {
+  filter: drop-shadow(0 0 14px rgba(220, 80, 255, 0.25));
+}
+
+.uq-danger-meter {
+  margin: 0 0 6px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.25px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.uq-danger input[type=\"range\"] {
+  width: 100%;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+}
+
+.uq-danger input[type=\"range\"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(220, 80, 255, 0.95);
+  border: 2px solid rgba(8, 7, 12, 0.95);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.6), 0 0 20px rgba(220, 80, 255, 0.2);
+}
+
+.uq-story-spinner {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  margin-top: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(10, 8, 14, 0.25);
+  border-top-color: rgba(10, 8, 14, 0.9);
+  animation: uqStorySpinner 0.6s linear infinite;
+}
+
+@keyframes uqStorySpinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .map-zone-body {
   width: 100%;
   display: flex;
@@ -3792,6 +4211,271 @@ body,
   font-size: 12px;
   color: rgba(255, 255, 255, 0.55);
 }
+
+/* Backrooms profile skin */
+.uq-profile-backrooms {
+  --uq-bkroom-accent: #d4c157;
+  --uq-bkroom-accent-soft: rgba(212, 193, 120, 0.35);
+  --uq-bkroom-ink: rgba(8, 8, 10, 0.95);
+  position: relative;
+}
+.uq-profile-backrooms .uq-profile-hero {
+  border-color: rgba(212, 193, 120, 0.6);
+  background: linear-gradient(180deg, rgba(8, 8, 12, 0.95), rgba(3, 3, 5, 0.98));
+  box-shadow: 0 35px 80px rgba(0, 0, 0, 0.85);
+  position: relative;
+  overflow: visible;
+}
+.uq-profile-backrooms .uq-profile-hero::before,
+.uq-profile-backrooms .uq-profile-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.uq-profile-backrooms .uq-profile-hero::before {
+  background: radial-gradient(circle at 12% 0%, rgba(212, 193, 120, 0.2), transparent 55%);
+  opacity: 0.55;
+}
+.uq-profile-backrooms .uq-profile-hero::after {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 48%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 2px, transparent 2px 6px);
+  mix-blend-mode: screen;
+  opacity: 0.4;
+}
+.uq-profile-backrooms .uq-profile-hero-inner {
+  position: relative;
+  z-index: 1;
+}
+.uq-profile-backrooms .uq-profile-avatar-block img,
+.uq-profile-backrooms .uq-profile-avatar-block .uq-profile-avatar-initial {
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-radius: 18px;
+  padding: 3px;
+  background: rgba(0, 0, 0, 0.4);
+  filter: saturate(0.85) contrast(1.05);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.7),
+    inset 0 0 10px rgba(255, 255, 255, 0.35);
+}
+.uq-profile-backrooms .uq-profile-status-line {
+  margin-top: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.35em;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+  opacity: 0.9;
+}
+.uq-profile-backrooms .uq-profile-hero-grid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+.uq-profile-backrooms .uq-relic.uq-bkroom {
+  border-color: rgba(210, 190, 90, 0.9);
+  background:
+    linear-gradient(160deg, rgba(14, 14, 20, 0.95), rgba(22, 18, 31, 0.92)),
+    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.08), transparent 45%);
+  box-shadow:
+    0 30px 40px rgba(0, 0, 0, 0.75),
+    inset 0 0 2px rgba(255, 255, 255, 0.08);
+  isolation: isolate;
+}
+.uq-profile-backrooms .uq-relic.uq-bkroom::before {
+  background:
+    linear-gradient(125deg, rgba(255, 255, 255, 0.02), transparent 45%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0 2px, transparent 2px 6px);
+}
+.uq-profile-backrooms .uq-relic.uq-bkroom::after {
+  background:
+    repeating-linear-gradient(115deg, rgba(255, 214, 92, 0.25) 0 5px, transparent 5px 12px),
+    linear-gradient(90deg, rgba(200, 200, 200, 0.04), rgba(255, 255, 255, 0.02));
+  opacity: 0.35;
+}
+.uq-profile-backrooms .uq-profile-id-card,
+.uq-profile-backrooms .uq-profile-progress-card,
+.uq-profile-backrooms .uq-profile-last-signal-card {
+  padding: 1.2rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.uq-profile-backrooms .uq-profile-id-head,
+.uq-profile-backrooms .uq-profile-progress-head,
+.uq-profile-backrooms .uq-profile-last-signal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.8);
+}
+.uq-profile-backrooms .uq-profile-id-tier,
+.uq-profile-backrooms .uq-profile-progress-tier {
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 0.65rem;
+  letter-spacing: 0.25em;
+  background: rgba(255, 255, 255, 0.05);
+}
+.uq-profile-backrooms .uq-profile-id-identity strong {
+  font-size: 1.05rem;
+}
+.uq-profile-backrooms .uq-profile-id-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+.uq-profile-backrooms .uq-profile-id-barcode {
+  height: 4px;
+  border-radius: 999px;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.4) 0 4px, transparent 4px 8px);
+  box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.25);
+}
+.uq-profile-backrooms .uq-profile-id-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+}
+.uq-profile-backrooms .uq-profile-id-tags span {
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  opacity: 0.85;
+}
+.uq-profile-backrooms .uq-profile-id-stamp {
+  margin-top: auto;
+  font-size: 0.65rem;
+  letter-spacing: 0.4em;
+  color: rgba(255, 255, 255, 0.6);
+}
+.uq-profile-backrooms .uq-profile-progress-meter {
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.uq-profile-backrooms .uq-profile-progress-fill span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(212, 193, 120, 0.9), rgba(212, 193, 120, 0.4));
+  box-shadow: 0 0 18px rgba(212, 193, 120, 0.7);
+  transition: width 0.9s ease;
+}
+.uq-profile-backrooms .uq-profile-progress-ticks {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+.uq-profile-backrooms .uq-profile-progress-ticks span {
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+  height: 100%;
+}
+.uq-profile-backrooms .uq-profile-progress-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.75);
+}
+.uq-profile-backrooms .uq-profile-progress-card .profile-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  opacity: 0.7;
+  letter-spacing: 0.08em;
+}
+.uq-profile-backrooms .uq-profile-last-signal-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.uq-profile-backrooms .uq-profile-last-signal-card li {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 0.35rem;
+}
+.uq-profile-backrooms .uq-profile-last-signal-card li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.uq-profile-backrooms .uq-profile-last-signal-time {
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  color: rgba(255, 255, 255, 0.5);
+}
+.uq-profile-backrooms .uq-profile-last-signal-info p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+.uq-profile-backrooms .uq-profile-collection-chips {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+.uq-profile-backrooms .uq-profile-collection-chip {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(1, 1, 1, 0.6);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.9rem;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  font: inherit;
+  appearance: none;
+  text-align: left;
+}
+.uq-profile-backrooms .uq-profile-collection-chip:hover,
+.uq-profile-backrooms .uq-profile-collection-chip:focus-visible {
+  border-color: rgba(212, 193, 120, 0.9);
+  box-shadow: 0 0 14px rgba(212, 193, 120, 0.45);
+}
+.uq-profile-backrooms .uq-profile-collection-chip:focus-visible {
+  outline: 2px solid rgba(212, 193, 120, 0.9);
+  outline-offset: 2px;
+}
+.uq-profile-backrooms .collection-chip-icon {
+  font-size: 1.1rem;
+}
+.uq-profile-backrooms .collection-chip-label {
+  display: block;
+  letter-spacing: 0.15em;
+  font-size: 0.65rem;
+  opacity: 0.8;
+}
+.uq-profile-backrooms .collection-chip-count {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .uq-profile-backrooms .uq-profile-progress-fill span {
+    transition: none;
+  }
+}
+
 
 .uq-profile-qr-card {
   text-align: center;
