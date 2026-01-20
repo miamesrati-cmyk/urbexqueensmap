@@ -34953,3 +34953,126 @@ Preset “Sobre luxe” (copy block to switch):
     padding: 7px 9px;
   }
 }
+
+/* ==============================
+   📖 STORY "COMING SOON" (PRO Teaser)
+   Conversion-focused placeholder
+   ============================== */
+
+.uq-story-coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  opacity: 0.75;
+  cursor: not-allowed;
+  user-select: none;
+}
+
+.uq-story-bubble-placeholder {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(138, 43, 226, 0.15), rgba(220, 80, 255, 0.12));
+  border: 2px dashed rgba(138, 43, 226, 0.35);
+  box-shadow: 0 8px 24px rgba(138, 43, 226, 0.15);
+  transition: all 200ms ease;
+}
+
+.uq-story-coming-soon:hover .uq-story-bubble-placeholder {
+  transform: scale(1.05);
+  border-color: rgba(138, 43, 226, 0.50);
+  box-shadow: 0 12px 32px rgba(138, 43, 226, 0.25);
+}
+
+.uq-story-icon {
+  font-size: 28px;
+  opacity: 0.8;
+  filter: grayscale(0.3);
+}
+
+.uq-story-crown {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 20px;
+  animation: pulse-crown 2.5s ease-in-out infinite;
+  filter: drop-shadow(0 2px 8px rgba(255, 215, 0, 0.4));
+}
+
+@keyframes pulse-crown {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.85;
+  }
+}
+
+.uq-story-labels {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.uq-story-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.uq-pro-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(138, 43, 226, 0.85), rgba(220, 80, 255, 0.75));
+  color: white;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  box-shadow: 0 4px 12px rgba(138, 43, 226, 0.35);
+}
+
+.uq-story-hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(138, 43, 226, 0.95);
+  font-style: italic;
+}
+
+/* Mobile optimization */
+@media (max-width: 768px) {
+  .uq-story-bubble-placeholder {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .uq-story-icon {
+    font-size: 24px;
+  }
+  
+  .uq-story-crown {
+    font-size: 18px;
+    top: -4px;
+    right: -4px;
+  }
+  
+  .uq-story-label {
+    font-size: 12px;
+  }
+  
+  .uq-story-hint {
+    font-size: 10px;
+  }
+}
