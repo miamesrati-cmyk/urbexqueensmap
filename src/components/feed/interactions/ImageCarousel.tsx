@@ -22,7 +22,12 @@ export type ImageCarouselProps = {
   media: MediaItem[];
   aspect?: Aspect;
   onIndexChange?: (idx: number) => void;
-  renderImage?: (item: MediaItem, index: number, isActive: boolean) => ReactNode;
+  renderImage?: (
+    item: MediaItem,
+    index: number,
+    isActive: boolean,
+    shouldLoad: boolean
+  ) => ReactNode;
 };
 
 export function ImageCarousel({
@@ -125,14 +130,23 @@ export function ImageCarousel({
       >
         {media.map((item, idx) => {
           const isActive = idx === activeIndex;
+          const shouldLoad = idx === activeIndex || idx === activeIndex + 1;
           const content = renderImage
-            ? renderImage(item, idx, isActive)
-            : (
+            ? renderImage(item, idx, isActive, shouldLoad)
+            : shouldLoad ? (
               <UQImage
                 src={item.url}
                 alt={item.alt ?? ""}
                 className="image-carousel__img"
+                sizes="(max-width: 900px) 92vw, 560px"
+                fetchPriority={idx === 0 ? "high" : "low"}
                 priority={idx === 0}
+              />
+            ) : (
+              <div
+                className="image-carousel__skel uq-skel"
+                style={{ minHeight: "280px", borderRadius: "18px", width: "100%" }}
+                aria-hidden="true"
               />
             );
           return (

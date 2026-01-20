@@ -2,7 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
-  
+  getDocs,
   orderBy,
   query,
   serverTimestamp,
@@ -22,6 +22,13 @@ export function listenLikedPostIds(
     const ids = snapshot.docs.map((document) => document.id);
     callback(ids);
   });
+}
+
+export async function fetchLikedPostIdsForUser(userId: string): Promise<string[]> {
+  const likedCollection = collection(db, "users", userId, "likedPosts");
+  const q = query(likedCollection, orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((document) => document.id);
 }
 
 export async function likePostForUser(userId: string, postId: string) {

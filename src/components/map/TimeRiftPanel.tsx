@@ -1,9 +1,12 @@
 // TIME RIFT V4: Mode "intelligence" ajouté (feature flag gated)
+import { useEffect } from "react";
+
 export type HistoryMode = "archives" | "decay" | "thenNow" | "intelligence";
 
 // V4: Import types for era control
 import type { EraBucket } from "../../utils/timeRiftIntelligence";
 import { bucketLabel, isIntelligenceModeEnabled } from "../../utils/timeRiftIntelligence";
+import type { WikiCard } from "../../services/archives/wiki";
 
 type Props = {
   active: boolean;
@@ -21,6 +24,12 @@ type Props = {
   archivesSource?: "ohm" | "fallback";
   onArchivesOpacityChange?: (opacity: number) => void;
   onArchivesSourceChange?: (source: "ohm" | "fallback") => void;
+  // 📜 ARCHIVES: Wikipedia cards + reset
+  archiveCards?: WikiCard[];
+  archivesLoading?: boolean;
+  archivesError?: string | null;
+  archivesQueryPoint?: { lat: number; lng: number } | null;
+  onArchivesReset?: () => void;
 };
 
 const YEAR_PRESETS = [
@@ -58,12 +67,26 @@ export default function TimeRiftPanel({
   archivesSource = "ohm",
   onArchivesOpacityChange,
   onArchivesSourceChange,
+  // 📜 ARCHIVES: Wikipedia cards + reset
+  archiveCards = [],
+  archivesLoading = false,
+  archivesError = null,
+  archivesQueryPoint = null,
+  onArchivesReset,
 }: Props) {
-  if (!active) return null;
+  // Debug: Log when archiveCards prop changes
+  // MUST be before early return to respect Rules of Hooks
+  useEffect(() => {
+    if (import.meta.env.DEV && active) {
+      console.log("[ARCHIVES][TimeRiftPanel] Received cards:", archiveCards?.length ?? 0);
+    }
+  }, [archiveCards, active]);
 
   // Derive booleans from tri-state for backward compat
   const isPro = proStatus === "pro";
   const isProLoading = proStatus === "loading";
+
+  if (!active) return null;
 
   return (
     <div className="time-rift-panel">
@@ -190,13 +213,16 @@ export default function TimeRiftPanel({
           <div className="archives-control-row">
             <label>Source</label>
             <div className="archives-source-switch">
-              <button
-                type="button"
-                className={`archives-source-btn ${archivesSource === "ohm" ? "active" : ""}`}
-                onClick={() => onArchivesSourceChange?.("ohm")}
-              >
-                Historique
-              </button>
+              {/* OHM only works in production (CORS issue in localhost) */}
+              {import.meta.env.PROD && (
+                <button
+                  type="button"
+                  className={`archives-source-btn ${archivesSource === "ohm" ? "active" : ""}`}
+                  onClick={() => onArchivesSourceChange?.("ohm")}
+                >
+                  Historique
+                </button>
+              )}
               <button
                 type="button"
                 className={`archives-source-btn ${archivesSource === "fallback" ? "active" : ""}`}
@@ -205,7 +231,88 @@ export default function TimeRiftPanel({
                 Papier
               </button>
             </div>
+            {import.meta.env.DEV && (
+              <small style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginLeft: '8px' }}>
+                (Mode Historique disponible en production)
+              </small>
+            )}
           </div>
+
+          {/* Reset button: Clear Wikipedia results */}
+          <div className="archives-control-row">
+            <button
+              type="button"
+              className="archives-reset-btn"
+              onClick={onArchivesReset}
+              disabled={!archivesQueryPoint && !archiveCards?.length}
+              title={
+                !archivesQueryPoint && !archiveCards?.length
+                  ? "Clique sur la carte pour lancer une recherche"
+                  : "Remettre à zéro"
+              }
+            >
+              🧹 Reset
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 📜 ARCHIVES: Wikipedia Cards (auto-populated) */}
+      {mode === "archives" && (
+        <div className="archives-cards-section">
+          {archivesLoading && (
+            <div className="archives-loading">Recherche archives...</div>
+          )}
+          
+          {archivesError && (
+            <div className="archives-error">{archivesError}</div>
+          )}
+          
+          {!archivesLoading && !archivesError && archiveCards.length === 0 && (
+            <div className="archives-hint">
+              Clique sur la carte pour découvrir l'histoire autour de ce point.
+            </div>
+          )}
+          
+          {archiveCards.length > 0 && (() => {
+            // 🔥 Debug: Log what we're actually rendering
+            if (import.meta.env.DEV) {
+              console.log("[ARCHIVES][UI] Rendering cards list, length =", archiveCards.length);
+            }
+            return (
+              <div className="archives-cards-grid">
+                {archiveCards.slice(0, 6).map((card) => (
+                <a
+                  key={card.pageid}
+                  href={card.fullurl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="archive-card"
+                >
+                  {card.thumbnail && (
+                    <div className="archive-card-thumbnail">
+                      <img src={card.thumbnail.source} alt="" />
+                    </div>
+                  )}
+                  <div className="archive-card-content">
+                    <h4 className="archive-card-title">{card.title}</h4>
+                    {card.dist !== undefined && (
+                      <span className="archive-card-distance">
+                        {card.dist < 1000 
+                          ? `${Math.round(card.dist)}m` 
+                          : `${(card.dist / 1000).toFixed(1)}km`}
+                      </span>
+                    )}
+                    {card.extract && (
+                      <p className="archive-card-extract">{card.extract}</p>
+                    )}
+                  </div>
+                  <span className="archive-card-link-icon">→</span>
+                </a>
+              ))}
+            </div>
+            );
+          })()}
         </div>
       )}
 

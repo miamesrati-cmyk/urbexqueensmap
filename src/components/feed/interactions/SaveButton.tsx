@@ -76,10 +76,11 @@ export function SaveButton({
   return (
     <button
       type="button"
-      className={`save-button ${isSaved ? "is-saved" : ""} ${
+      className={`save-button uq-save-btn ${isSaved ? "is-saved" : ""} ${
         isAnimating ? "is-animating" : ""
       } ${className}`}
       aria-label={isSaved ? "Retirer des favoris" : "Ajouter aux favoris"}
+      aria-pressed={isSaved}
       onClick={handleToggle}
     >
       {isSaved ? "🔖" : "📌"}

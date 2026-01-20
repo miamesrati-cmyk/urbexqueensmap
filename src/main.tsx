@@ -24,6 +24,8 @@ if (typeof console !== 'undefined') {
   const originalWarn = console.warn;
   const originalError = console.error;
   const originalLog = console.log;
+  const originalInfo = console.info;
+  const isDevMode = import.meta.env.DEV;
   
   const shouldSuppress = (message: any): boolean => {
     if (typeof message !== 'string') return false;
@@ -46,7 +48,7 @@ if (typeof console !== 'undefined') {
     // Suppress Firestore CORS errors (configuration issue, not app error)
     if (message.includes('firestore.googleapis.com') && 
         (message.includes('cors') || message.includes('access control') || message.includes('fetch api'))) {
-      console.info('[UQ] ⚠️ Firestore CORS - Vérifiez Firebase Console → Authentication → Authorized domains → Ajoutez "localhost"');
+      originalInfo('[UQ] ⚠️ Firestore CORS - Vérifiez Firebase Console → Authentication → Authorized domains → Ajoutez "localhost"');
       return true;
     }
     
@@ -64,8 +66,15 @@ if (typeof console !== 'undefined') {
   };
   
   console.log = (...args: any[]) => {
+    if (!isDevMode) return;
     if (shouldSuppress(args[0])) return;
     originalLog.apply(console, args);
+  };
+
+  console.info = (...args: any[]) => {
+    if (!isDevMode) return;
+    if (shouldSuppress(args[0])) return;
+    originalInfo.apply(console, args);
   };
 }
 

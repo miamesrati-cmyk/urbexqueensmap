@@ -3,7 +3,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { v4 as uuid } from "uuid";
 import { auth } from "../lib/firebase";
 import {
-  listenPlacesPage,
+  fetchPlacesPage,
   type Place,
   type PlacesPageCursor,
 } from "../services/places";
@@ -12,17 +12,18 @@ import {
   createPost,
   createStory,
   fetchMorePosts,
-  listenPostComments,
+  fetchPostComments,
+  fetchStories,
   listenPosts,
-  listenStories,
   togglePostReaction,
   toggleStoryReaction,
+  type EmotionVariant,
   type Post,
   type PostComment,
   type Story,
 } from "../services/social";
 import { uploadUrbexMedia } from "../services/storage";
-import { listenFollowing, type Follow } from "../services/follows";
+import { fetchFollowingForUser, type Follow } from "../services/follows";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
 import { useLiveUserProfile, useLiveUserProfiles } from "../hooks/useLiveUserProfiles";
 import type { LiveUserProfileSummary } from "../hooks/useLiveUserProfiles";
@@ -40,9 +41,9 @@ import { useToast } from "../contexts/useToast";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { DoubleTapLike } from "./feed/interactions/DoubleTapLike";
 import { SaveButton } from "./feed/interactions/SaveButton";
-import { listenSavedPostIds } from "../services/savedPosts";
+import { fetchSavedPostIdsForUser } from "../services/savedPosts";
 import {
-  listenLikedPostIds,
+  fetchLikedPostIdsForUser,
   likePostForUser,
   unlikePostForUser,
 } from "../services/postsLikes";
@@ -52,10 +53,18 @@ import { AutoPlayVideo } from "./feed/interactions/AutoPlayVideo";
 import { ViewTracker } from "./feed/interactions/ViewTracker";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import { useInViewOnce } from "../hooks/useInViewOnce";
+import { scheduleDeferredTask } from "../utils/scheduleDeferredTask";
 
 type ReactionHandler = (emoji: string) => void;
 
 type FeedMode = "all" | "following" | "mine";
+
+const FEED_IMAGE_SIZES = "(max-width: 900px) 92vw, 560px";
+const AVATAR_FEED = 32;
+const STORY_BUBBLE = 64;
+const MODAL_IMAGE_SIZES = "(max-width: 900px) 100vw, 900px";
+const AVATAR_MODAL = 40;
+const AVATAR_COMMENT = 28;
 
 const FEED_MODES: { id: FeedMode; label: string }[] = [
   { id: "all", label: "Tous les posts" },
@@ -63,8 +72,48 @@ const FEED_MODES: { id: FeedMode; label: string }[] = [
   { id: "mine", label: "Mes posts" },
 ];
 
+type AvatarBubbleProps = {
+  avatarUrl?: string | null;
+  alt: string;
+  size: number;
+  wrapperClassName?: string;
+};
+
+function AvatarBubble({
+  avatarUrl,
+  alt,
+  size,
+  wrapperClassName,
+}: AvatarBubbleProps) {
+  const wrapperStyle = {
+    width: size,
+    height: size,
+    borderRadius: 999,
+    overflow: "hidden",
+  };
+  const skeletonStyle = {
+    width: size,
+    height: size,
+    borderRadius: 999,
+  };
+
+  return (
+    <div className={wrapperClassName} style={wrapperStyle}>
+      {avatarUrl ? (
+        <UQImage src={avatarUrl} alt={alt} sizes={`${size}px`} fetchPriority="low" />
+      ) : (
+        <div className="uq-skel" style={skeletonStyle} />
+      )}
+    </div>
+  );
+}
+
 const PLACES_PAGE_SIZE = 60;
 const VIDEO_URL_REGEX = /\.(mp4|mov|webm|mkv|ogv|ogg)(\?.*)?$/i;
+
+const followingCache = new Map<string, Follow[]>();
+const savedPostsCache = new Map<string, string[]>();
+const likedPostsCache = new Map<string, string[]>();
 
 function relativeTime(timestamp: number) {
   const diff = Date.now() - timestamp;
@@ -133,11 +182,15 @@ function FeedPostTile({
   );
   const commentCount = post.commentsCount ?? 0;
   const authorName = post.authorName || "Urbex Queen";
-  const avatarInitial = authorName.charAt(0).toUpperCase();
   const locationLabel = getLocationLabel(post);
   const isProAuthor = post.authorIsPro;
   const captionText = post.caption?.trim() || "Aucune légende pour ce moment.";
   const timestamp = relativeTime(post.createdAt);
+  const emotionLabel = post.emotionStatus?.trim() || "Exploration nocturne";
+  const emotionClassNames = ["uq-post-emotion"];
+  if (post.emotionVariant) {
+    emotionClassNames.push(post.emotionVariant);
+  }
   const commentSnippets =
     captionText && captionText !== "Aucune légende pour ce moment."
       ? captionText
@@ -164,8 +217,29 @@ function FeedPostTile({
     .filter(Boolean)
     .join(" ");
 
+  const mediaVisible = inView;
   const renderCarouselImage = useCallback(
-    (item: CarouselMediaItem, idx: number, isActive: boolean) => {
+    (
+      item: CarouselMediaItem,
+      idx: number,
+      isActive: boolean,
+      shouldLoad: boolean
+    ) => {
+      const shouldRenderMedia = shouldLoad && mediaVisible;
+      if (!shouldRenderMedia) {
+        return (
+          <div
+            className="image-carousel__skel uq-skel"
+            style={{
+              minHeight: "280px",
+              borderRadius: "18px",
+              width: "100%",
+            }}
+            aria-hidden="true"
+          />
+        );
+      }
+
       const mediaItem = mediaItems[idx];
       if (mediaItem?.type === "video") {
         return (
@@ -182,6 +256,7 @@ function FeedPostTile({
           src={mediaItem?.url ?? item.url}
           alt={mediaItem?.alt ?? item.alt ?? "Post urbex"}
           className="feed-post-cover"
+          sizes={FEED_IMAGE_SIZES}
         />
       );
 
@@ -202,7 +277,15 @@ function FeedPostTile({
         </DoubleTapLike>
       );
     },
-    [isLiked, onRequireAuthForLike, onToggleLike, post.id, reactionTotal, mediaItems]
+    [
+      isLiked,
+      onRequireAuthForLike,
+      onToggleLike,
+      post.id,
+      reactionTotal,
+      mediaItems,
+      mediaVisible,
+    ]
   );
 
   return (
@@ -221,19 +304,21 @@ function FeedPostTile({
         }}
         aria-label="Ouvrir le post urbex"
       >
-      <header className="feed-post-card-header">
+        <header className="feed-post-card-header">
         <div className="feed-card-avatar">
-          {post.authorAvatar ? (
-            <UQImage src={post.authorAvatar} alt={authorName} />
-          ) : (
-            <span>{avatarInitial}</span>
-          )}
+          <AvatarBubble
+            avatarUrl={post.authorAvatar}
+            alt={authorName}
+            size={AVATAR_FEED}
+            wrapperClassName="uq-avatar-wrap"
+          />
         </div>
         <div className="feed-card-meta">
           <div className="feed-card-name-row">
             <strong className="feed-card-name">{authorName}</strong>
             {isProAuthor && <span className="feed-card-pro">PRO</span>}
           </div>
+          <div className={emotionClassNames.join(" ")}>{emotionLabel}</div>
           <span className="feed-card-time">{timestamp}</span>
           {locationLabel && (
             <span className="feed-card-sub">{locationLabel}</span>
@@ -249,26 +334,35 @@ function FeedPostTile({
             renderImage={renderCarouselImage}
           />
         ) : coverItem ? (
-          coverItem.type === "video" ? (
-            <AutoPlayVideo
-              src={coverItem.url}
-              className="feed-post-cover"
-            />
-          ) : (
-            <DoubleTapLike
-              postId={post.id}
-              isLiked={isLiked}
-              likeCount={reactionTotal}
-              onRequireAuth={onRequireAuthForLike}
-              onToggleLike={onToggleLike}
-              className="feed-post-media-surface"
-            >
-              <UQImage
+          mediaVisible ? (
+            coverItem.type === "video" ? (
+              <AutoPlayVideo
                 src={coverItem.url}
-                alt={coverItem.alt || "Post urbex"}
                 className="feed-post-cover"
               />
-            </DoubleTapLike>
+            ) : (
+              <DoubleTapLike
+                postId={post.id}
+                isLiked={isLiked}
+                likeCount={reactionTotal}
+                onRequireAuth={onRequireAuthForLike}
+                onToggleLike={onToggleLike}
+                className="feed-post-media-surface"
+              >
+                <UQImage
+                  src={coverItem.url}
+                  alt={coverItem.alt || "Post urbex"}
+                  className="feed-post-cover"
+                  sizes={FEED_IMAGE_SIZES}
+                />
+              </DoubleTapLike>
+            )
+          ) : (
+            <div
+              className="feed-post-media-placeholder uq-skel"
+              style={{ minHeight: "320px", borderRadius: "18px" }}
+              aria-hidden="true"
+            />
           )
         ) : (
           <div className="feed-post-placeholder">📸</div>
@@ -285,7 +379,7 @@ function FeedPostTile({
         >
           <button
             type="button"
-            className={`feed-post-reaction-btn ${currentReaction ? "is-active" : ""}`}
+            className={`feed-post-reaction-btn uq-like-btn ${currentReaction ? "is-active" : ""}`}
             onClick={() => onReact("🖤")}
             aria-label="Aimer ce post"
             aria-pressed={!!currentReaction}
@@ -366,7 +460,8 @@ const MemoizedFeedPostTile = memo(FeedPostTile, (prev, next) => {
     prev.post.createdAt === next.post.createdAt &&
     prev.isSaved === next.isSaved &&
     prev.isLiked === next.isLiked &&
-    prev.currentUserId === next.currentUserId
+    prev.currentUserId === next.currentUserId &&
+    prev.shouldBreathing === next.shouldBreathing
   );
 });
 
@@ -440,6 +535,7 @@ function FeedPostModal({
   const authorHandle = authorNavigationUsername ? `@${authorNavigationUsername}` : null;
   const authorAvatar = authorProfile?.photoURL ?? post.authorAvatar;
   const authorIsPro = authorProfile?.isPro ?? post.authorIsPro ?? false;
+  const showAuthorSkeleton = !authorProfile;
 
   // Forcer le scroll en haut du modal quand il s'ouvre
   useEffect(() => {
@@ -493,15 +589,19 @@ function FeedPostModal({
                 onNavigateProfile(authorNavigationUsername, post.userId)
               }
             >
-              <div className="ig-avatar">
-                {authorAvatar ? (
-                  <UQImage src={authorAvatar} alt={authorDisplayName} />
-                ) : (
-                  <span>{(authorDisplayName || "U")[0].toUpperCase()}</span>
-                )}
+              <div className={`ig-avatar ${showAuthorSkeleton ? "uq-skel" : ""}`}>
+                <AvatarBubble
+                  avatarUrl={authorAvatar}
+                  alt={authorDisplayName}
+                  size={AVATAR_MODAL}
+                />
               </div>
               <div className="feed-post-modal-author-texts">
-                <span className="feed-post-modal-username">
+                <span
+                  className={`feed-post-modal-username ${
+                    showAuthorSkeleton ? "uq-skel" : ""
+                  }`}
+                >
                   {authorDisplayName}
                 </span>
                 {authorHandle && (
@@ -544,7 +644,7 @@ function FeedPostModal({
           <div className="feed-post-modal-actions">
             <button
               type="button"
-              className={`modal-like-btn ${isLiked ? "is-active" : ""}`}
+              className={`modal-like-btn uq-like-btn ${isLiked ? "is-active" : ""}`}
               onClick={() => {
                 if (isGuest) {
                   onRequireAuth();
@@ -552,6 +652,7 @@ function FeedPostModal({
                 }
                 onReact("🖤");
               }}
+              aria-pressed={isLiked}
               aria-disabled={isGuest}
             >
               {isLiked ? "❤️" : "🤍"} {reactionTotal}
@@ -572,7 +673,7 @@ function FeedPostModal({
             </button>
           </div>
 
-          <div className="feed-post-modal-comment-block">
+          <div className="feed-post-modal-comment-block uq-comments-panel is-open">
             {comments.length === 0 ? (
               <p className="feed-post-modal-comment-empty">Commentaires à venir…</p>
             ) : (
@@ -590,19 +691,28 @@ function FeedPostModal({
                 const handleCommenterClick = () => {
                   onNavigateProfile(commenterProfile?.username ?? null, comment.userId);
                 };
+                const commenterAvatar = commenterProfile?.photoURL ?? null;
                 return (
                   <div key={comment.id} className="feed-post-modal-comment">
-                    <button
-                      type="button"
-                      className="feed-post-modal-comment-username"
-                      onClick={handleCommenterClick}
-                    >
-                      {commenterName}
-                      {commenterHandle && (
-                        <small className="feed-post-modal-handle">{commenterHandle}</small>
-                      )}
-                    </button>
-                    <span>{comment.text}</span>
+                    <AvatarBubble
+                      avatarUrl={commenterAvatar}
+                      alt={`${commenterName} • avatar`}
+                      size={AVATAR_COMMENT}
+                      wrapperClassName="uq-avatar-wrap"
+                    />
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <button
+                        type="button"
+                        className="feed-post-modal-comment-username"
+                        onClick={handleCommenterClick}
+                      >
+                        {commenterName}
+                        {commenterHandle && (
+                          <small className="feed-post-modal-handle">{commenterHandle}</small>
+                        )}
+                      </button>
+                      <span>{comment.text}</span>
+                    </div>
                   </div>
                 );
               })
@@ -694,6 +804,31 @@ const STORY_FLOW_RATIOS = [
   { id: "9-16", label: "9:16" },
 ];
 
+const EMOTION_STATUS_OPTIONS = [
+  "Exploration nocturne",
+  "Accès scellé",
+  "Lieu instable",
+  "Risque élevé",
+  "Entrée interdite",
+  "Silence total",
+  "Présence ressentie",
+  "Trace fraîche",
+] as const;
+
+const EMOTION_STATUS_MAX = 32;
+const DEFAULT_EMOTION_STATUS = EMOTION_STATUS_OPTIONS[0];
+
+const EMOTION_VARIANT_OPTIONS: { id: EmotionVariant; label: string; icon: string }[] = [
+  { id: "calm", label: "Calme", icon: "•" },
+  { id: "sealed", label: "Scellé", icon: "⌁" },
+  { id: "danger", label: "Danger", icon: "⚠️" },
+  { id: "legendary", label: "Légendaire", icon: "👑" },
+];
+
+const DEFAULT_EMOTION_VARIANT: EmotionVariant = "calm";
+
+const clampEmotionStatus = (value: string) => value.slice(0, EMOTION_STATUS_MAX);
+
 export default function SocialFeed() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -703,7 +838,6 @@ export default function SocialFeed() {
   const [placesLoadingMore, setPlacesLoadingMore] = useState(false);
   const [placesError, setPlacesError] = useState<string | null>(null);
   const [placesCursor, setPlacesCursor] = useState<PlacesPageCursor | null>(null);
-  const placesAdditionalUnsubs = useRef<(() => void)[]>([]);
   const [livePosts, setLivePosts] = useState<Post[]>([]);
   const [olderPosts, setOlderPosts] = useState<Post[]>([]);
   const [loadingFeed, setLoadingFeed] = useState(true);
@@ -737,6 +871,13 @@ export default function SocialFeed() {
   const [filter, setFilter] = useState<string>("grunge");
   const [uploadingPost, setUploadingPost] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
+  const [postEmotionStatus, setPostEmotionStatus] = useState(
+    clampEmotionStatus(DEFAULT_EMOTION_STATUS)
+  );
+  const [postEmotionVariant, setPostEmotionVariant] = useState<EmotionVariant>(
+    DEFAULT_EMOTION_VARIANT
+  );
+  const [emotionMenuOpen, setEmotionMenuOpen] = useState(false);
 
   const [storyFile, setStoryFile] = useState<File | null>(null);
   const [storyText, setStoryText] = useState("");
@@ -755,9 +896,17 @@ export default function SocialFeed() {
 
   const [commentsMap, setCommentsMap] = useState<Record<string, PostComment[]>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
-  const commentUnsubs = useRef<Record<string, () => void>>({});
+  const commentRequests = useRef<Map<string, { active: boolean }>>(new Map());
+  const placesCursorCache = useRef(new Map<string, PlacesPageCursor | null>());
+  const placesCursorKey = useMemo(
+    () => `places:${isProUser ? "pro" : "free"}:${PLACES_PAGE_SIZE}`,
+    [isProUser]
+  );
+  const isMountedRef = useRef(true);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const preloadedUrls = useRef<Set<string>>(new Set());
+  const emotionMenuRef = useRef<HTMLDivElement | null>(null);
+  const emotionButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [activeStoryIndex, setActiveStoryIndex] = useState(0);
@@ -773,6 +922,17 @@ export default function SocialFeed() {
   const isProUser = currentProfile?.isPro ?? false;
   const isGuest = !user;
   const { requireAuth } = useAuthUI();
+  const composerAuthorName =
+    currentProfile?.displayName ??
+    user?.displayName ??
+    user?.email?.split("@")[0] ??
+    "Exploratrice";
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   const ensureAuth = useCallback(
     async (options: RequireAuthOptions) => {
       if (user) return true;
@@ -800,6 +960,22 @@ export default function SocialFeed() {
   }, [requireAuth]);
 
   useEffect(() => {
+    if (!emotionMenuOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (
+        emotionMenuRef.current?.contains(target) ||
+        emotionButtonRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setEmotionMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [emotionMenuOpen]);
+
+  useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u || null);
       setAuthLoading(false);
@@ -812,31 +988,78 @@ export default function SocialFeed() {
       setFollowing([]);
       return;
     }
-    const unsub = listenFollowing(user.uid, setFollowing);
-    return () => unsub();
-  }, [user]);
+    const cached = followingCache.get(user.uid);
+    if (cached) {
+      setFollowing(cached);
+    }
+    let active = true;
+    scheduleDeferredTask(
+      async () => {
+        const next = await fetchFollowingForUser(user.uid);
+        if (!active || !isMountedRef.current) return;
+        followingCache.set(user.uid, next);
+        setFollowing(next);
+      },
+      { key: `following:${user.uid}`, ttlMs: 60_000 }
+    ).catch((error) => {
+      console.error("[SocialFeed] fetchFollowing failed", error);
+    });
+    return () => {
+      active = false;
+    };
+  }, [user?.uid]);
 
   useEffect(() => {
     if (!user) {
       setSavedPostIds(new Set());
       return;
     }
-    const unsubscribe = listenSavedPostIds(user.uid, (ids) => {
-      setSavedPostIds(new Set(ids));
+    const cached = savedPostsCache.get(user.uid);
+    if (cached) {
+      setSavedPostIds(new Set(cached));
+    }
+    let active = true;
+    scheduleDeferredTask(
+      async () => {
+        const ids = await fetchSavedPostIdsForUser(user.uid);
+        if (!active || !isMountedRef.current) return;
+        savedPostsCache.set(user.uid, ids);
+        setSavedPostIds(new Set(ids));
+      },
+      { key: `saved:${user.uid}`, ttlMs: 60_000 }
+    ).catch((error) => {
+      console.error("[SocialFeed] fetchSavedPostIds failed", error);
     });
-    return () => unsubscribe();
-  }, [user]);
+    return () => {
+      active = false;
+    };
+  }, [user?.uid]);
 
   useEffect(() => {
     if (!user) {
       setLikedPostIds(new Set());
       return;
     }
-    const unsubscribe = listenLikedPostIds(user.uid, (ids) => {
-      setLikedPostIds(new Set(ids));
+    const cached = likedPostsCache.get(user.uid);
+    if (cached) {
+      setLikedPostIds(new Set(cached));
+    }
+    let active = true;
+    scheduleDeferredTask(
+      async () => {
+        const ids = await fetchLikedPostIdsForUser(user.uid);
+        if (!active || !isMountedRef.current) return;
+        likedPostsCache.set(user.uid, ids);
+        setLikedPostIds(new Set(ids));
+      },
+      { key: `likes:${user.uid}`, ttlMs: 60_000 }
+    ).catch((error) => {
+      console.error("[SocialFeed] fetchLikedPostIds failed", error);
     });
-    return () => unsubscribe();
-  }, [user]);
+    return () => {
+      active = false;
+    };
+  }, [user?.uid]);
 
   const handleToggleLike = useCallback(
     async (postId: string, next: boolean) => {
@@ -877,37 +1100,71 @@ export default function SocialFeed() {
     [requireAuthForLike, toast, user]
   );
 
+  const loadPlacesPage = useCallback(
+    async (
+      cursor: PlacesPageCursor | null,
+      append: boolean,
+      isActive: () => boolean = () => true
+    ) => {
+      if (!isActive() || !isMountedRef.current) return;
+      if (append) {
+        setPlacesLoadingMore(true);
+      } else {
+        setPlacesLoading(true);
+        setPlacesError(null);
+        setPlacesHasMore(true);
+      }
+      try {
+        const result = await fetchPlacesPage({
+          pageSize: PLACES_PAGE_SIZE,
+          cursor,
+          isPro: isProUser,
+        });
+        if (!isActive() || !isMountedRef.current) return;
+        if (append) {
+          setPlaces((prev) => [...prev, ...result.places]);
+        } else {
+          setPlaces(result.places);
+        }
+        setPlacesCursor(result.lastDoc);
+        placesCursorCache.current.set(placesCursorKey, result.lastDoc);
+        setPlacesHasMore(!!result.lastDoc);
+      } catch (error) {
+        if (!isMountedRef.current) return;
+        console.error("[SocialFeed] fetchPlacesPage failed", error);
+        setPlacesError("Impossible de charger les spots pour l’instant.");
+      } finally {
+        if (!isMountedRef.current) return;
+        if (append) {
+          setPlacesLoadingMore(false);
+        } else {
+          setPlacesLoading(false);
+        }
+      }
+    },
+    [isProUser, placesCursorKey]
+  );
+
   useEffect(() => {
-    placesAdditionalUnsubs.current.forEach((fn) => fn());
-    placesAdditionalUnsubs.current = [];
     setPlaces([]);
-    setPlacesCursor(null);
+    setPlacesCursor(placesCursorCache.current.get(placesCursorKey) ?? null);
     setPlacesHasMore(true);
     setPlacesError(null);
     setPlacesLoading(true);
-    setPlacesLoadingMore(false);
-
-    const unsub = listenPlacesPage(
-      { pageSize: PLACES_PAGE_SIZE, isPro: isProUser },
-      ({ places: nextPlaces, lastDoc }) => {
-        setPlaces(nextPlaces);
-        setPlacesCursor(lastDoc);
-        setPlacesHasMore(!!lastDoc);
-        setPlacesLoading(false);
-      },
-      (error) => {
-        console.error("[SocialFeed] listenPlacesPage failed", error);
-        setPlacesError("Impossible de charger les spots pour l’instant.");
-        setPlacesLoading(false);
+    let active = true;
+    scheduleDeferredTask(
+      () => loadPlacesPage(null, false, () => active),
+      {
+        key: `${placesCursorKey}:init`,
+        ttlMs: 30_000,
       }
-    );
-
+    ).catch((error) => {
+      console.error("[SocialFeed] deferred loadPlacesPage failed", error);
+    });
     return () => {
-      unsub();
-      placesAdditionalUnsubs.current.forEach((fn) => fn());
-      placesAdditionalUnsubs.current = [];
+      active = false;
     };
-  }, [isProUser]);
+  }, [isProUser, loadPlacesPage, placesCursorKey]);
 
   const loadMorePlaces = useCallback(() => {
     if (
@@ -918,30 +1175,9 @@ export default function SocialFeed() {
     ) {
       return;
     }
-    setPlacesLoadingMore(true);
-    const unsub = listenPlacesPage(
-      {
-        pageSize: PLACES_PAGE_SIZE,
-        cursor: placesCursor,
-        isPro: isProUser,
-      },
-      ({ places: nextPlaces, lastDoc }) => {
-        setPlaces((prev) => [...prev, ...nextPlaces]);
-        setPlacesCursor(lastDoc);
-        setPlacesHasMore(!!lastDoc);
-        setPlacesLoadingMore(false);
-        unsub();
-      },
-      (error) => {
-        console.error("[SocialFeed] loadMorePlaces failed", error);
-        setPlacesError("Impossible de charger plus de spots pour l’instant.");
-        setPlacesLoadingMore(false);
-        unsub();
-      }
-    );
-    placesAdditionalUnsubs.current.push(unsub);
+    loadPlacesPage(placesCursor, true);
   }, [
-    isProUser,
+    loadPlacesPage,
     placesCursor,
     placesHasMore,
     placesLoading,
@@ -988,29 +1224,57 @@ export default function SocialFeed() {
   }, []);
 
   useEffect(() => {
-    const unsub = listenStories(setStories);
-    return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    const cleanupFns = Object.values(commentUnsubs.current);
+    let active = true;
+    scheduleDeferredTask(
+      async () => {
+        const items = await fetchStories();
+        if (!active || !isMountedRef.current) return;
+        setStories(items);
+      },
+      { key: "stories", ttlMs: 30_000 }
+    ).catch((error) => {
+      console.error("[SocialFeed] fetchStories failed", error);
+    });
     return () => {
-      cleanupFns.forEach((fn) => fn());
+      active = false;
     };
   }, []);
 
-  const ensureComments = useCallback((postId: string) => {
-    if (commentUnsubs.current[postId]) return;
-    commentUnsubs.current[postId] = listenPostComments(postId, (items) => {
-      setCommentsMap((prev) => ({ ...prev, [postId]: items }));
-    });
-  }, []);
+  const ensureComments = useCallback(
+    (postId: string) => {
+      if (commentsMap[postId]) return;
+      if (commentRequests.current.has(postId)) return;
+      const requestState = { active: true };
+      commentRequests.current.set(postId, requestState);
+      scheduleDeferredTask(
+        () => fetchPostComments(postId),
+        { key: `comments:${postId}`, ttlMs: 30_000, immediateIfCached: true }
+      )
+        .then((items) => {
+          if (!requestState.active || !isMountedRef.current) return;
+          setCommentsMap((prev) => ({ ...prev, [postId]: items }));
+        })
+        .catch((error) => {
+          console.error("[SocialFeed] fetchPostComments failed", error);
+        })
+        .finally(() => {
+          requestState.active = false;
+          commentRequests.current.delete(postId);
+        });
+    },
+    [commentsMap]
+  );
 
   const releaseComments = useCallback((postId: string) => {
-    const unsub = commentUnsubs.current[postId];
-    if (unsub) {
-      unsub();
-      delete commentUnsubs.current[postId];
+    setCommentsMap((prev) => {
+      const next = { ...prev };
+      delete next[postId];
+      return next;
+    });
+    const pending = commentRequests.current.get(postId);
+    if (pending) {
+      pending.active = false;
+      commentRequests.current.delete(postId);
     }
   }, []);
 
@@ -1220,6 +1484,16 @@ export default function SocialFeed() {
     minSpinnerTime: 800,
   });
 
+  const handleSelectEmotionStatus = useCallback((status: string) => {
+    setPostEmotionStatus(clampEmotionStatus(status));
+    setEmotionMenuOpen(false);
+  }, []);
+
+  const handleSelectEmotionVariant = useCallback((variant: EmotionVariant) => {
+    setPostEmotionVariant(variant);
+    setEmotionMenuOpen(false);
+  }, []);
+
   const handleCreatePost = useCallback(
     async (e?: React.FormEvent) => {
       if (e) e.preventDefault();
@@ -1276,6 +1550,8 @@ export default function SocialFeed() {
           authorAvatar: user.photoURL,
           authorUsername: currentProfile?.username ?? null,
           authorIsPro: isProUser,
+          emotionStatus: postEmotionStatus,
+          emotionVariant: postEmotionVariant,
           postId,
         });
 
@@ -1312,6 +1588,8 @@ export default function SocialFeed() {
       filter,
       currentProfile,
       isProUser,
+      postEmotionStatus,
+      postEmotionVariant,
     ]
   );
 
@@ -1329,6 +1607,9 @@ export default function SocialFeed() {
     setLinkedPlaceId("");
     setFilter("grunge");
     setPostError(null);
+    setPostEmotionStatus(clampEmotionStatus(DEFAULT_EMOTION_STATUS));
+    setPostEmotionVariant(DEFAULT_EMOTION_VARIANT);
+    setEmotionMenuOpen(false);
   }, []);
 
   const publishPostFlow = useCallback(async () => {
@@ -1618,6 +1899,14 @@ export default function SocialFeed() {
     setPostFlowOpen(true);
   }, []);
 
+  const composerEmotionClassNames = [
+    "uq-post-emotion",
+    "flow-emotion-preview-text",
+    postEmotionVariant,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   if (authLoading) {
     return <div className="uq-feed-loading">Loading feed…</div>;
   }
@@ -1663,11 +1952,12 @@ export default function SocialFeed() {
               >
                 <div className="ig-story-ring your">
                   <div className="ig-story-avatar">
-                    {user?.photoURL ? (
-                      <UQImage src={user.photoURL} alt="Ta story" />
-                    ) : (
-                      <span>{(user?.displayName || "U")[0]}</span>
-                    )}
+                    <AvatarBubble
+                      avatarUrl={user?.photoURL}
+                      alt="Ta story"
+                      size={STORY_BUBBLE}
+                      wrapperClassName="uq-story-bubble"
+                    />
                   </div>
                 </div>
                 <div className="ig-story-name">Ta story</div>
@@ -1681,18 +1971,20 @@ export default function SocialFeed() {
                   onClick={() => openStoryViewer(idx)}
                   onDoubleClick={() => handleReactStory(story, "🖤")}
                 >
-                <div className="ig-story-ring">
-                  <div className="ig-story-avatar">
-                    <UQImage
-                      src={story.mediaUrl}
-                      alt={
-                        story.authorName
-                          ? `${story.authorName} • story`
-                          : "Story preview"
-                      }
-                    />
+                  <div className="ig-story-ring">
+                    <div className="ig-story-avatar">
+                      <AvatarBubble
+                        avatarUrl={story.mediaUrl}
+                        alt={
+                          story.authorName
+                            ? `${story.authorName} • story`
+                            : "Story preview"
+                        }
+                        size={STORY_BUBBLE}
+                        wrapperClassName="uq-story-bubble"
+                      />
+                    </div>
                   </div>
-                </div>
                   <div className="ig-story-name">
                     {(story.authorName || story.userId || "user").slice(0, 10)}
                   </div>
@@ -1753,14 +2045,12 @@ export default function SocialFeed() {
                 tabIndex={0}
               >
                 <div className="ig-avatar small">
-                  {user?.photoURL ? (
-                    <UQImage
-                      src={user.photoURL}
-                      alt={`${user?.displayName || "Utilisateur"} • avatar`}
-                    />
-                  ) : (
-                    <span>🖤</span>
-                  )}
+                  <AvatarBubble
+                    avatarUrl={user?.photoURL}
+                    alt={`${user?.displayName || "Utilisateur"} • avatar`}
+                    size={AVATAR_FEED}
+                    wrapperClassName="uq-avatar-wrap"
+                  />
                 </div>
                 <div className="ig-quick-placeholder">Partage une exploration...</div>
                 <div className="ig-quick-icon">➕</div>
@@ -1777,7 +2067,7 @@ export default function SocialFeed() {
           </div>
         ) : (
           <div className="feed-post-grid">
-            {paginatedPosts.map((post) => (
+            {paginatedPosts.map((post, idx) => (
               <MemoizedFeedPostTile
                 key={post.id}
                 post={post}
@@ -1790,6 +2080,7 @@ export default function SocialFeed() {
                 onReact={(emoji) => handleReactPost(post.id, emoji)}
                 currentUserId={userUid}
                 isGuest={isGuest}
+                shouldBreathing={post.authorIsPro || idx < 3}
               />
             ))}
             {/* Sentinel pour infinite scroll */}
@@ -2059,6 +2350,90 @@ export default function SocialFeed() {
                     )}
                   </div>
                   <div className="flow-preview-details">
+                    <div className="flow-emotion-row">
+                      <div className="flow-emotion-preview-meta">
+                        <strong className="flow-emotion-preview-name">{composerAuthorName}</strong>
+                        <span
+                          className={composerEmotionClassNames}
+                          aria-live="polite"
+                        >
+                          {postEmotionStatus}
+                        </span>
+                      </div>
+                      <div className="flow-emotion-picker">
+                        <button
+                          type="button"
+                          ref={emotionButtonRef}
+                          className="flow-emotion-btn"
+                          onClick={() => setEmotionMenuOpen((prev) => !prev)}
+                          aria-expanded={emotionMenuOpen}
+                          aria-controls="flow-emotion-menu"
+                          aria-label="Choisir un état émotionnel"
+                        >
+                          <span className="flow-emotion-btn-icon" aria-hidden="true">
+                            ●
+                          </span>
+                          État
+                        </button>
+                        {emotionMenuOpen && (
+                          <div
+                            className="flow-emotion-menu"
+                            ref={emotionMenuRef}
+                            id="flow-emotion-menu"
+                            role="dialog"
+                            aria-label="Sélectionne un statut émotionnel"
+                          >
+                            <div className="flow-emotion-options">
+                              {EMOTION_STATUS_OPTIONS.map((status) => {
+                                const normalized = clampEmotionStatus(status);
+                                const isActive = normalized === postEmotionStatus;
+                                return (
+                                  <button
+                                    key={status}
+                                    type="button"
+                                    className={`flow-emotion-option ${
+                                      isActive ? "is-active" : ""
+                                    }`}
+                                    onClick={() => handleSelectEmotionStatus(status)}
+                                    aria-pressed={isActive}
+                                  >
+                                    {status}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div className="flow-emotion-variants">
+                              <div className="flow-emotion-variants-label">Variant</div>
+                              <div className="flow-emotion-variants-row">
+                                {EMOTION_VARIANT_OPTIONS.map((variant) => {
+                                  const isActive = variant.id === postEmotionVariant;
+                                  const locked = variant.id === "legendary" && !isProUser;
+                                  return (
+                                    <button
+                                      key={variant.id}
+                                      type="button"
+                                      className={`flow-emotion-variant-pill ${
+                                        isActive ? "is-active" : ""
+                                      }`}
+                                      onClick={() => {
+                                        if (locked) return;
+                                        handleSelectEmotionVariant(variant.id);
+                                      }}
+                                      disabled={locked}
+                                      aria-pressed={isActive}
+                                      title={locked ? "Réservé aux PRO" : undefined}
+                                    >
+                                    <span aria-hidden="true">{variant.icon}</span>
+                                    {variant.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     <textarea
                       value={caption}
                       onChange={(event) => setCaption(event.target.value)}

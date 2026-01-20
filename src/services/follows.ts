@@ -94,6 +94,20 @@ export function listenFollowing(uid: string, cb: (f: Follow[]) => void) {
   });
 }
 
+export async function fetchFollowingForUser(uid: string): Promise<Follow[]> {
+  const col = followingCollection(uid);
+  const snapshot = await getDocs(query(col, orderBy("createdAt", "desc")));
+  return snapshot.docs.map((d) => {
+    const data: any = d.data();
+    return {
+      id: d.id,
+      fromUid: uid,
+      toUid: d.id,
+      createdAt: timestampToMillis(data.createdAt),
+    };
+  });
+}
+
 export async function followUser(fromUid: string, toUid: string) {
   ensureWritesAllowed();
   if (fromUid === toUid) return;

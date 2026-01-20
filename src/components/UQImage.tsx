@@ -11,7 +11,7 @@ type UQImageFit = "cover" | "contain" | "fill" | "none" | "scale-down";
 
 export type UQImageProps = Omit<
   ImgHTMLAttributes<HTMLImageElement>,
-  "src" | "alt" | "className" | "style" | "loading" | "decoding"
+  "src" | "alt" | "className" | "style"
 > & {
   src?: string;
   alt?: string;
@@ -19,6 +19,12 @@ export type UQImageProps = Omit<
   style?: CSSProperties;
   fit?: UQImageFit;
   priority?: boolean;
+  sizes?: string;
+  srcSet?: string;
+  fetchPriority?: "high" | "low" | "auto";
+  loading?: "eager" | "lazy" | "auto";
+  decoding?: "async" | "sync" | "auto";
+  referrerPolicy?: ImgHTMLAttributes<HTMLImageElement>["referrerPolicy"];
 };
 
 const mergeClasses = (...classes: Array<string | undefined>): string =>
@@ -31,6 +37,12 @@ export default function UQImage({
   style,
   fit = BASE_FIT,
   priority = false,
+  sizes,
+  srcSet,
+  fetchPriority,
+  loading,
+  decoding,
+  referrerPolicy = "no-referrer",
   onLoad,
   ...rest
 }: UQImageProps) {
@@ -63,6 +75,8 @@ export default function UQImage({
         <img
           {...rest}
           src={src}
+          srcSet={srcSet}
+          sizes={sizes}
           alt={alt}
           className={mergeClasses(
             "uq-img",
@@ -70,8 +84,10 @@ export default function UQImage({
             isLoaded ? "is-loaded" : undefined
           )}
           style={{ objectFit: fit }}
-          loading={priority ? "eager" : "lazy"}
-          decoding="async"
+          loading={loading ?? (priority ? "eager" : "lazy")}
+          decoding={decoding ?? "async"}
+          referrerPolicy={referrerPolicy}
+          fetchPriority={fetchPriority ?? (priority ? "high" : "auto")}
           onLoad={handleLoad}
         />
       ) : null}

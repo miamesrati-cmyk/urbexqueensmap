@@ -62,7 +62,13 @@ export default function UrbexFeedUserSearch({ onSelect }: Props) {
             >
               <div className="feed-user-search-avatar">
                 {profile.photoURL ? (
-                  <img src={profile.photoURL} alt={profile.username || profile.uid} />
+                  <img
+                    src={profile.photoURL}
+                    alt={profile.username || profile.uid}
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                  />
                 ) : (
                   <span>{(profile.username || profile.displayName || "U").charAt(0).toUpperCase()}</span>
                 )}

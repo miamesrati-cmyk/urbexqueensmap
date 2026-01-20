@@ -10923,6 +10923,65 @@ body,
   flex-wrap: wrap;
 }
 
+/* === UQ FEED: Emotional status line === */
+.uq-post-emotion {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  letter-spacing: 0.3px;
+  opacity: 0.75;
+  color: rgba(220, 190, 255, 0.85);
+  font-weight: 500;
+  text-transform: uppercase;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.uq-post-emotion::before {
+  content: "●";
+  font-size: 10px;
+  color: rgba(220, 80, 255, 0.9);
+  animation: uqEmotionPulse 2.8s ease-in-out infinite;
+}
+
+@keyframes uqEmotionPulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uq-post-emotion::before {
+    animation: none;
+  }
+}
+
+.uq-post-emotion.danger {
+  color: rgba(255, 110, 110, 0.9);
+}
+
+.uq-post-emotion.sealed {
+  color: rgba(180, 160, 255, 0.9);
+}
+
+.uq-post-emotion.unstable {
+  color: rgba(255, 200, 120, 0.9);
+}
+
+.uq-post-emotion.calm {
+  color: rgba(200, 220, 255, 0.9);
+}
+
+.uq-post-emotion.legendary {
+  color: rgba(255, 215, 150, 0.95);
+}
+
 .feed-pin-btn {
   border: 1px solid rgba(255, 0, 160, 0.5);
   background: rgba(255, 0, 160, 0.12);
@@ -17062,6 +17121,149 @@ body,
 .flow-preview-details input,
 .flow-preview-details textarea {
   width: 100%;
+}
+
+.flow-preview-details {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+}
+
+.flow-emotion-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.flow-emotion-preview-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.flow-emotion-preview-name {
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.65);
+  text-transform: uppercase;
+}
+
+.flow-emotion-preview-text {
+  max-width: 280px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 0.72rem;
+}
+
+.flow-emotion-picker {
+  position: relative;
+}
+
+.flow-emotion-btn {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.flow-emotion-btn-icon {
+  font-size: 0.7rem;
+  color: #ffb5ff;
+}
+
+.flow-emotion-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: rgba(8, 6, 18, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  padding: 12px;
+  min-width: 220px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.flow-emotion-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.flow-emotion-option {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.02);
+  color: #fff;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.flow-emotion-option.is-active {
+  border-color: rgba(255, 0, 140, 0.7);
+  background: rgba(255, 0, 140, 0.12);
+}
+
+.flow-emotion-variants {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flow-emotion-variants-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.flow-emotion-variants-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.flow-emotion-variant-pill {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.flow-emotion-variant-pill.is-active {
+  border-color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.flow-emotion-variant-pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .flow-location-grid {
@@ -33040,4 +33242,267 @@ html[data-qa-avatar="off"] .topbar-avatar::after {
 
 .feed-post-modal-details::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* === UQ FEED: Skeleton shimmer helpers === */
+.uq-skel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.uq-skel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-30%);
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0),
+    rgba(255, 255, 255, 0.1),
+    rgba(0, 0, 0, 0)
+  );
+  animation: uqSkel 1.6s ease-in-out infinite;
+  opacity: 0.8;
+}
+
+@keyframes uqSkel {
+  from {
+    transform: translateX(-40%);
+  }
+  to {
+    transform: translateX(40%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uq-skel::after {
+    animation: none;
+  }
+}
+
+.uq-map-skel {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-panel);
+}
+
+.map-skel {
+  min-height: 280px;
+}
+
+.map-pro-panel-skel {
+  width: 240px;
+  height: 120px;
+  border-radius: var(--radius-card);
+}
+
+.map-add-spot-placeholder {
+  width: 60px;
+  height: 60px;
+}
+
+.map-time-rift-skel {
+  width: 240px;
+  height: 52px;
+}
+
+/* === UQ FEED: Post hover lift === */
+.uq-feed-post {
+  transform: translateY(0);
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease, filter 220ms ease;
+  will-change: transform, box-shadow;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .uq-feed-post:hover {
+    transform: translateY(-3px);
+    filter: saturate(1.03);
+    box-shadow:
+      0 18px 60px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 0 28px rgba(220, 80, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Focus clavier (accessibilité premium) */
+.uq-feed-post:focus-within {
+  transform: translateY(-2px);
+  box-shadow:
+    0 16px 50px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 24px rgba(220, 80, 255, 0.14);
+}
+
+/* === UQ FEED: Slow breathing glow === */
+@keyframes uqBreathGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 18px 55px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(255, 255, 255, 0.05),
+      0 0 18px rgba(220, 80, 255, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 22px 70px rgba(0, 0, 0, 0.62),
+      0 0 0 1px rgba(255, 255, 255, 0.07),
+      0 0 28px rgba(220, 80, 255, 0.18);
+  }
+}
+
+.uq-feed-post.uq-breathing {
+  animation: uqBreathGlow 6.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uq-feed-post.uq-breathing {
+    animation: none;
+  }
+}
+
+/* === UQ FEED: Reveal on scroll (JS toggles is-inview) === */
+.uq-feed-post.uq-scrollreveal {
+  opacity: 0;
+  transform: translateY(10px);
+  filter: blur(10px);
+  transition: opacity 520ms ease, transform 520ms ease, filter 520ms ease;
+  will-change: opacity, transform, filter;
+}
+
+.uq-feed-post.uq-scrollreveal.is-inview {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uq-feed-post.uq-scrollreveal {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+}
+
+/* === UQ FEED: Like feedback === */
+.uq-like-btn {
+  transform: translateZ(0);
+  transition: transform 140ms ease, filter 180ms ease;
+  will-change: transform, filter;
+}
+
+.uq-like-btn:active {
+  transform: scale(0.92);
+}
+
+@keyframes uqLikePop {
+  0% {
+    transform: scale(0.92);
+    filter: drop-shadow(0 0 0 rgba(220, 80, 255, 0));
+  }
+  40% {
+    transform: scale(1.18);
+    filter: drop-shadow(0 0 18px rgba(220, 80, 255, 0.55));
+  }
+  100% {
+    transform: scale(1.0);
+    filter: drop-shadow(0 0 8px rgba(220, 80, 255, 0.18));
+  }
+}
+
+.uq-like-btn[aria-pressed="true"],
+.uq-like-btn.is-liked {
+  animation: uqLikePop 320ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uq-like-btn[aria-pressed="true"],
+  .uq-like-btn.is-liked {
+    animation: none;
+  }
+}
+
+/* === UQ FEED: Save seal === */
+.uq-save-btn {
+  position: relative;
+  transform: translateZ(0);
+  transition: transform 160ms ease, filter 200ms ease;
+  will-change: transform, filter;
+}
+
+.uq-save-btn:active {
+  transform: scale(0.93);
+}
+
+.uq-save-btn::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.18) 0 2px, rgba(255, 255, 255, 0) 3px),
+    radial-gradient(circle, rgba(220, 80, 255, 0.25), rgba(220, 80, 255, 0) 60%);
+  border: 1px solid rgba(220, 80, 255, 0.18);
+}
+
+@keyframes uqSealLock {
+  0% {
+    opacity: 0;
+    transform: scale(0.75) rotate(-10deg);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.1) rotate(6deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.25) rotate(0deg);
+  }
+}
+
+.uq-save-btn[aria-pressed="true"]::after,
+.uq-save-btn.is-saved::after {
+  animation: uqSealLock 520ms ease-out;
+}
+
+.uq-save-btn[aria-pressed="true"],
+.uq-save-btn.is-saved {
+  filter: drop-shadow(0 0 10px rgba(220, 80, 255, 0.22));
+}
+
+/* === UQ FEED: Comments smooth open === */
+.uq-comments-panel {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+  filter: blur(6px);
+  transition:
+    max-height 320ms ease,
+    opacity 240ms ease,
+    transform 240ms ease,
+    filter 240ms ease;
+  will-change: max-height, opacity, transform, filter;
+}
+
+.uq-comments-panel.is-open {
+  max-height: 520px;
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uq-comments-panel {
+    transition: none;
+    max-height: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
 }

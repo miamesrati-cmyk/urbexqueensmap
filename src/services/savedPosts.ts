@@ -2,7 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
-  
+  getDocs,
   orderBy,
   query,
   serverTimestamp,
@@ -22,6 +22,13 @@ export function listenSavedPostIds(
     const ids = snapshot.docs.map((document) => document.id);
     callback(ids);
   });
+}
+
+export async function fetchSavedPostIdsForUser(userId: string): Promise<string[]> {
+  const savedCollection = collection(db, "users", userId, "savedPosts");
+  const q = query(savedCollection, orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((doc) => doc.id);
 }
 
 export async function savePostForUser(userId: string, postId: string) {

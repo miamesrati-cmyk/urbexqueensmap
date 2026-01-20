@@ -465,10 +465,31 @@ export function listenPlacesPage(
         .filter((place): place is Place => Boolean(place));
       const filtered = isPro ? places : places.filter((p) => !p.proOnly);
       const lastDoc = snap.docs[snap.docs.length - 1] ?? null;
-      cb({ places: filtered, lastDoc });
-    },
-    onError
-  );
+    cb({ places: filtered, lastDoc });
+  },
+  onError
+);
+}
+
+export async function fetchPlacesPage(params: {
+  pageSize: number;
+  cursor?: PlacesPageCursor | null;
+  isPro?: boolean;
+}): Promise<PlacesPageResult> {
+  const { pageSize, cursor, isPro } = params;
+  const constraints = [
+    orderBy("createdAt", "desc"),
+    limit(pageSize),
+    ...(cursor ? [startAfter(cursor)] : []),
+  ];
+  const q = query(PLACES, ...constraints);
+  const snap = await getDocs(q);
+  const places = snap.docs
+    .map((doc) => mapPlaceSnapshot(doc))
+    .filter((place): place is Place => Boolean(place));
+  const filtered = isPro ? places : places.filter((p) => !p.proOnly);
+  const lastDoc = snap.docs[snap.docs.length - 1] ?? null;
+  return { places: filtered, lastDoc };
 }
 
 export async function getPlace(id: string): Promise<Place | null> {

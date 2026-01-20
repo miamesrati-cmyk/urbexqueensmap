@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { listenUserProfile } from "../services/userProfiles";
+import { useEffect, useMemo, useState } from "react";
+import { getUserProfile, type UserProfile } from "../services/userProfiles";
 import { makeStormLogger } from "../utils/stormLogger";
+import { scheduleDeferredTask } from "../utils/scheduleDeferredTask";
 
 export type LiveUserProfileSummary = {
   uid: string;
@@ -36,9 +37,24 @@ function areProfilesEqual(
   );
 }
 
+function buildLiveProfile(uid: string, profile: UserProfile): LiveUserProfileSummary {
+  return {
+    uid,
+    displayName: profile.displayName,
+    username: profile.username ?? profile.qrSlug ?? null,
+    photoURL: profile.photoURL,
+    avatarCropX: profile.avatarCropX ?? 0,
+    avatarCropY: profile.avatarCropY ?? 0,
+    avatarZoom: profile.avatarZoom ?? 1,
+    avatarMode: profile.avatarMode ?? "cover",
+    isPro: !!profile.isPro,
+    isAdmin: profile.isAdmin ?? null,
+    rolesAdmin: profile.roles?.admin ?? null,
+  };
+}
+
 export function useLiveUserProfiles(uids: string[]) {
   const [profiles, setProfiles] = useState<Record<string, LiveUserProfileSummary>>({});
-  const unsubs = useRef<Record<string, () => void>>({});
   const normalized = useMemo(
     () => Array.from(new Set(uids.filter((uid) => !!uid))),
     [uids]
@@ -53,50 +69,46 @@ export function useLiveUserProfiles(uids: string[]) {
   );
 
   useEffect(() => {
+    setProfiles((prev) => {
+      const next: Record<string, LiveUserProfileSummary> = {};
+      normalized.forEach((uid) => {
+        if (prev[uid]) {
+          next[uid] = prev[uid];
+        }
+      });
+      return next;
+    });
+
+    if (normalized.length === 0) {
+      return () => {};
+    }
+
+    let active = true;
     normalized.forEach((uid) => {
-      if (unsubs.current[uid]) return;
-      unsubs.current[uid] = listenUserProfile(uid, (profile) => {
-        const nextProfile = {
-          uid,
-          displayName: profile.displayName,
-          username: profile.username ?? profile.qrSlug ?? null,
-          photoURL: profile.photoURL,
-          avatarCropX: profile.avatarCropX ?? 0,
-          avatarCropY: profile.avatarCropY ?? 0,
-          avatarZoom: profile.avatarZoom ?? 1,
-          avatarMode: profile.avatarMode ?? "cover",
-          isPro: !!profile.isPro,
-          isAdmin: profile.isAdmin ?? null,
-          rolesAdmin: profile.roles?.admin ?? null,
-        };
-        setProfiles((prev) => {
-          if (areProfilesEqual(prev[uid], nextProfile)) {
-            return prev;
-          }
-          logLiveProfileStorm(nextProfile);
-          return {
-            ...prev,
-            [uid]: nextProfile,
-          };
-        });
+      if (!uid) return;
+      scheduleDeferredTask(
+        async () => {
+          const raw = await getUserProfile(uid);
+          if (!active) return;
+          const nextProfile = buildLiveProfile(uid, raw);
+          setProfiles((prev) => {
+            if (areProfilesEqual(prev[uid], nextProfile)) {
+              return prev;
+            }
+            logLiveProfileStorm(nextProfile);
+            return { ...prev, [uid]: nextProfile };
+          });
+        },
+        { key: `profile:${uid}`, ttlMs: 10 * 60_000 }
+      ).catch((error) => {
+        if (import.meta.env.DEV) {
+          console.error("[UQ] fetchUserProfile failed", uid, error);
+        }
       });
     });
 
-    Object.keys(unsubs.current)
-      .filter((uid) => !normalized.includes(uid))
-      .forEach((uid) => {
-        unsubs.current[uid]?.();
-        delete unsubs.current[uid];
-        setProfiles((prev) => {
-          const next = { ...prev };
-          delete next[uid];
-          return next;
-        });
-      });
-
     return () => {
-      Object.values(unsubs.current).forEach((fn) => fn());
-      unsubs.current = {};
+      active = false;
     };
   }, [normalized, logLiveProfileStorm]);
 

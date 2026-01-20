@@ -33,6 +33,8 @@ export type PostLocation = {
   label?: string;
 };
 
+export type EmotionVariant = "calm" | "danger" | "sealed" | "unstable" | "legendary";
+
 export type Post = {
   id: string;
   postId: string;
@@ -49,6 +51,8 @@ export type Post = {
   authorAvatar?: string | null;
   authorIsPro?: boolean;
   authorUsername?: string | null;
+  emotionStatus?: string | null;
+  emotionVariant?: EmotionVariant | null;
 };
 
 export type Story = {
@@ -96,6 +100,8 @@ function deserializePost(docSnap: any): Post {
     authorAvatar: data.authorAvatar ?? null,
     authorIsPro: data.authorIsPro ?? false,
     authorUsername: data.authorUsername ?? null,
+    emotionStatus: data.emotionStatus ?? null,
+    emotionVariant: data.emotionVariant ?? null,
   };
 }
 
@@ -146,6 +152,8 @@ export async function createPost(input: {
   authorAvatar?: string | null;
   authorIsPro?: boolean;
   authorUsername?: string | null;
+  emotionStatus?: string | null;
+  emotionVariant?: EmotionVariant | null;
   postId?: string;
 }) {
   ensureWritesAllowed();
@@ -165,6 +173,8 @@ export async function createPost(input: {
     authorAvatar: input.authorAvatar ?? null,
     authorIsPro: input.authorIsPro ?? false,
     authorUsername: input.authorUsername ?? null,
+    emotionStatus: input.emotionStatus ?? null,
+    emotionVariant: input.emotionVariant ?? null,
   });
   return postId;
 }
@@ -277,6 +287,23 @@ export function listenPostComments(
   });
 }
 
+export async function fetchPostComments(postId: string): Promise<PostComment[]> {
+  const comments = collection(db, "posts", postId, "comments");
+  const q = query(comments, orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => {
+    const x: any = d.data();
+    return {
+      id: d.id,
+      userId: x.userId,
+      text: x.text ?? "",
+      createdAt: x.createdAt?.toMillis?.() ?? x.createdAt ?? Date.now(),
+      displayName: x.displayName ?? null,
+      username: x.username ?? null,
+    };
+  });
+}
+
 export async function createStory(input: {
   userId: string;
   mediaUrl: string;
@@ -339,6 +366,32 @@ export function listenStories(cb: (stories: Story[]) => void) {
       console.error("listenStories error", err);
     }
   );
+}
+
+export async function fetchStories(): Promise<Story[]> {
+  const cg = collectionGroup(db, STORY_COLLECTION_NAME);
+  const cutoff = Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000);
+  const q = query(cg, where("createdAt", ">=", cutoff), orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  const out: Story[] = [];
+  snap.forEach((d) => {
+    const x: any = d.data();
+    out.push({
+      id: d.id,
+      userId: x.userId ?? d.ref.parent.parent?.id ?? "",
+      mediaUrl: x.mediaUrl,
+      text: x.text ?? "",
+      music: x.music ?? "",
+      createdAt: x.createdAt?.toMillis?.() ?? x.createdAt ?? Date.now(),
+      expiresAt: x.expiresAt?.toMillis?.() ?? x.expiresAt ?? Date.now(),
+      reactions: x.reactions ?? emptyReactions(),
+      userReactions: x.reactionBy ?? x.userReactions ?? {},
+      authorName: x.authorName ?? null,
+      authorAvatar: x.authorAvatar ?? null,
+      authorUsername: x.authorUsername ?? null,
+    });
+  });
+  return out;
 }
 
 export async function toggleStoryReaction(
