@@ -30,14 +30,14 @@ const cancel: Cancel = (id) => {
 };
 
 // @ts-ignore - Generic type T is used in function signature below
-type DeferredOptions<T> = {
+type DeferredOptions<_T> = {
   key?: string;
   ttlMs?: number;
   timeoutMs?: number;
   immediateIfCached?: boolean;
 };
 
-type CacheEntry<T> = { value: T; expiresAt: number };
+type CacheEntry<_T> = { value: T; expiresAt: number };
 
 const pendingByKey = new Map<string, Promise<any>>();
 const timerByKey = new Map<string, number>();
@@ -74,14 +74,14 @@ export function clearDeferredTaskCache(prefix?: string) {
  * - If key is provided and a task is already pending, returns the same promise.
  * - If key is cached (ttlMs), returns the cached value immediately.
  */
-export function scheduleDeferredTask<T>(
-  work: () => Promise<T>,
-  opts: DeferredOptions<T> = {}
-): Promise<T> {
+export function scheduleDeferredTask<_T>(
+  work: () => Promise<_T>,
+  opts: DeferredOptions<_T> = {}
+): Promise<_T> {
   const { key, ttlMs = 0, immediateIfCached = true } = opts;
 
   if (key && ttlMs > 0) {
-    const cached = cacheByKey.get(key) as CacheEntry<T> | undefined;
+    const cached = cacheByKey.get(key) as CacheEntry<_T> | undefined;
     if (cached && cached.expiresAt > Date.now()) {
       return immediateIfCached
         ? Promise.resolve(cached.value)
@@ -93,13 +93,13 @@ export function scheduleDeferredTask<T>(
   }
 
   if (key) {
-    const pending = pendingByKey.get(key) as Promise<T> | undefined;
+    const pending = pendingByKey.get(key) as Promise<_T> | undefined;
     if (pending) {
       return pending;
     }
   }
 
-  const promise = new Promise<T>((resolve, reject) => {
+  const promise = new Promise<_T>((resolve, reject) => {
     const id = schedule(() => {
       if (key) {
         timerByKey.delete(key);

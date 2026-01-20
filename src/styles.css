@@ -33402,6 +33402,39 @@ html[data-qa-avatar="off"] .topbar-avatar::after {
   --uq-shadow-strength: 1;
 }
 
+/*
+Preset “Cinéma mystique” (copy block to switch):
+:root {
+  --uq-halo-opacity: 0.70;
+  --uq-scan-opacity: 0.28;
+  --uq-scan-duration: 10500ms;
+  --uq-grain-opacity: 0.16;
+  --uq-glitch-opacity: 0.16;
+  --uq-reveal-duration: 640ms;
+}
+
+Preset “Sobre luxe” (copy block to switch):
+:root {
+  --uq-halo-opacity: 0.38;
+  --uq-scan-opacity: 0.08;
+  --uq-scan-duration: 7000ms;
+  --uq-grain-opacity: 0.06;
+  --uq-glitch-opacity: 0.04;
+  --uq-reveal-duration: 480ms;
+}
+*/
+
+@media (prefers-reduced-motion: reduce), (prefers-reduced-transparency: reduce) {
+  :root {
+    --uq-scan-opacity: 0.06;
+    --uq-glitch-opacity: 0.04;
+    --uq-grain-opacity: 0.06;
+  }
+}
+
+/* Keep a single blend layer per surface (grain in header,
+   halo/glitch for relic cards) and avoid fullscreen blur overlays. */
+
 /* =========================
    UQ FEED HEADER: PORTAL FX
    Halo + grain + scanlight

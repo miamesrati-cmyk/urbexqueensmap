@@ -14,7 +14,7 @@ import {
   countSpotsByBucket,
   spotsToGeoJSON,
   isIntelligenceModeEnabled,
-  type EraBucket,
+  
 } from "../../src/utils/timeRiftIntelligence";
 import type { Place } from "../../src/services/places";
 
