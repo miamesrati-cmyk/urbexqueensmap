@@ -281,7 +281,6 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
   // � ARCHIVES MODE (Option C): Raster overlay + archive cards
   const [archivesOpacity, setArchivesOpacity] = useState(0.55); // Default opacity
   const [archivesSource, setArchivesSource] = useState<"ohm" | "fallback">("ohm");
-  // @ts-expect-error - TS6133 false positive: used at lines 313,314,935,3432,3954
   const [__archivesQueryPoint, __setArchivesQueryPoint] = useState<{ lat: number; lng: number } | null>(null);
 
   // �🕰️ TIME RIFT: Memoize decay GeoJSON (avoid rebuild on every mode/year change)
@@ -3581,6 +3580,7 @@ const BLOCK_LABELS: Record<MapLayoutBlockId, string> = {
   proBar: "Barre PRO",
   hostBadge: "Badge Host",
   spotHandle: "Ajouter un spot",
+  storyBubble: "Story Bubble", // TODO: Feature removed
 };
 
 type MapLayoutBlockProps = {
