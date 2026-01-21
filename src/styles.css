@@ -34630,11 +34630,17 @@ Preset “Sobre luxe” (copy block to switch):
    Option B: Bottom-left overlay
    ============================== */
 
-.uq-decay-legend {
+/* Time Rift Legends: Common safe-area positioning (iPhone notch/home indicator support) */
+.uq-decay-legend,
+.uq-intel-legend,
+.uq-archives-legend {
   position: absolute;
   left: calc(12px + env(safe-area-inset-left, 0px));
   bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   z-index: 30;
+}
+
+.uq-decay-legend {
   width: 176px;
   border-radius: 14px;
   padding: 10px 10px 9px;
@@ -34663,6 +34669,14 @@ Preset “Sobre luxe” (copy block to switch):
 }
 
 .uq-decay-legend__info {
+  /* Reset button styles */
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  
+  /* Info button styles */
   width: 20px;
   height: 20px;
   border-radius: 999px;
@@ -34817,10 +34831,6 @@ Preset “Sobre luxe” (copy block to switch):
    ============================== */
 
 .uq-intel-legend {
-  position: absolute;
-  left: calc(12px + env(safe-area-inset-left, 0px));
-  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  z-index: 30;
   width: 188px;
   border-radius: 14px;
   padding: 10px 10px 9px;
@@ -34850,6 +34860,12 @@ Preset “Sobre luxe” (copy block to switch):
 }
 
 .uq-intel-legend__info {
+  /* Reset button styles */
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  
+  /* Info button styles */
   position: relative;
   width: 20px;
   height: 20px;
@@ -35115,10 +35131,6 @@ Preset “Sobre luxe” (copy block to switch):
    ============================== */
 
 .uq-archives-legend {
-  position: absolute;
-  left: calc(12px + env(safe-area-inset-left, 0px));
-  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  z-index: 30;
   width: 188px;
   border-radius: 14px;
   padding: 10px 10px 9px;
@@ -35147,6 +35159,12 @@ Preset “Sobre luxe” (copy block to switch):
 }
 
 .uq-archives-legend__info {
+  /* Reset button styles */
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  
+  /* Info button styles */
   position: relative;
   width: 20px;
   height: 20px;
