@@ -34677,6 +34677,7 @@ Preset “Sobre luxe” (copy block to switch):
   font-family: inherit;
   appearance: none;
   -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
   
   /* Info button styles */
   width: 20px;
@@ -34869,6 +34870,7 @@ Preset “Sobre luxe” (copy block to switch):
   font-family: inherit;
   appearance: none;
   -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
   
   /* Info button styles */
   position: relative;
@@ -35171,6 +35173,7 @@ Preset “Sobre luxe” (copy block to switch):
   font-family: inherit;
   appearance: none;
   -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
   
   /* Info button styles */
   position: relative;
