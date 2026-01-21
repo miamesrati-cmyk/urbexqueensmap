@@ -34632,8 +34632,8 @@ Preset “Sobre luxe” (copy block to switch):
 
 .uq-decay-legend {
   position: absolute;
-  left: 12px;
-  bottom: 12px;
+  left: calc(12px + env(safe-area-inset-left, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   z-index: 30;
   width: 176px;
   border-radius: 14px;
@@ -34774,8 +34774,8 @@ Preset “Sobre luxe” (copy block to switch):
   z-index: 100;
 }
 
-/* Hover tooltip (only on devices with hover capability - fixes iOS sticky hover) */
-@media (hover: hover) {
+/* Hover tooltip (only on hover-capable devices with fine pointer - fixes iOS sticky hover) */
+@media (hover: hover) and (pointer: fine) {
   .uq-decay-legend__info:hover::after {
     opacity: 1;
     transform: translateY(0);
@@ -34786,6 +34786,14 @@ Preset “Sobre luxe” (copy block to switch):
 .uq-decay-legend__info:focus-visible::after {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* Mobile/touch: allow :focus to show tooltip on tap */
+@media (hover: none) and (pointer: coarse) {
+  .uq-decay-legend__info:focus::after {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Focus ring (keyboard navigation) */
@@ -34810,8 +34818,8 @@ Preset “Sobre luxe” (copy block to switch):
 
 .uq-intel-legend {
   position: absolute;
-  left: 12px;
-  bottom: 12px;
+  left: calc(12px + env(safe-area-inset-left, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   z-index: 30;
   width: 188px;
   border-radius: 14px;
@@ -34888,8 +34896,8 @@ Preset “Sobre luxe” (copy block to switch):
   z-index: 100;
 }
 
-/* Hover tooltip (only on devices with hover capability - fixes iOS sticky hover) */
-@media (hover: hover) {
+/* Hover tooltip (only on hover-capable devices with fine pointer - fixes iOS sticky hover) */
+@media (hover: hover) and (pointer: fine) {
   .uq-intel-legend__info:hover::after {
     opacity: 1;
     transform: translateY(0);
@@ -34900,6 +34908,14 @@ Preset “Sobre luxe” (copy block to switch):
 .uq-intel-legend__info:focus-visible::after {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* Mobile/touch: allow :focus to show tooltip on tap */
+@media (hover: none) and (pointer: coarse) {
+  .uq-intel-legend__info:focus::after {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .uq-intel-legend__info:focus-visible {
@@ -35100,8 +35116,8 @@ Preset “Sobre luxe” (copy block to switch):
 
 .uq-archives-legend {
   position: absolute;
-  left: 12px;
-  bottom: 12px;
+  left: calc(12px + env(safe-area-inset-left, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   z-index: 30;
   width: 188px;
   border-radius: 14px;
@@ -35123,9 +35139,10 @@ Preset “Sobre luxe” (copy block to switch):
 }
 
 .uq-archives-legend__title {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: rgba(222, 184, 135, 0.95);
 }
 
@@ -35179,8 +35196,8 @@ Preset “Sobre luxe” (copy block to switch):
   z-index: 100;
 }
 
-/* Hover tooltip (only on devices with hover capability - fixes iOS sticky hover) */
-@media (hover: hover) {
+/* Hover tooltip (only on hover-capable devices with fine pointer - fixes iOS sticky hover) */
+@media (hover: hover) and (pointer: fine) {
   .uq-archives-legend__info:hover::after {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
@@ -35191,6 +35208,14 @@ Preset “Sobre luxe” (copy block to switch):
 .uq-archives-legend__info:focus-visible::after {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* Mobile/touch: allow :focus to show tooltip on tap */
+@media (hover: none) and (pointer: coarse) {
+  .uq-archives-legend__info:focus::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .uq-archives-legend__info:focus-visible {
