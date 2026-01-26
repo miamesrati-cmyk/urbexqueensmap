@@ -11,8 +11,9 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { onSnapshot } from "../lib/firestoreHelpers";
+import { uqOnSnapshot as onSnapshot } from "../utils/uqOnSnapshot";
 import { db, functions } from "../lib/firebase";
+import { captureException } from "../lib/monitoring";
 import { v4 as uuid } from "uuid";
 import { z } from "zod";
 
@@ -256,9 +257,20 @@ export function listenThemeVersions(
     orderBy("meta.timestamp", "desc")
   );
   return onSnapshot(
+    "adminConfigs:listenThemeVersions",
     q,
     (snap) => callback(snap.docs.map(mapThemeVersion)),
-    onError
+    onError ?? ((error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[adminConfigs] listenThemeVersions permission-denied (expected for non-admin)");
+        }
+        callback([]);
+      } else {
+        console.error("[adminConfigs] listenThemeVersions error:", error);
+        captureException(error);
+      }
+    })
   );
 }
 
@@ -272,9 +284,20 @@ export function listenUiConfigVersions(
     orderBy("meta.timestamp", "desc")
   );
   return onSnapshot(
+    "adminConfigs:listenUiConfigVersions",
     q,
     (snap) => callback(snap.docs.map(mapUiConfigVersion)),
-    onError
+    onError ?? ((error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[adminConfigs] listenUiConfigVersions permission-denied (expected for non-admin)");
+        }
+        callback([]);
+      } else {
+        console.error("[adminConfigs] listenUiConfigVersions error:", error);
+        captureException(error);
+      }
+    })
   );
 }
 
@@ -288,9 +311,20 @@ export function listenOverlayVersions(
     orderBy("meta.timestamp", "desc")
   );
   return onSnapshot(
+    "adminConfigs:listenOverlayVersions",
     q,
     (snap) => callback(snap.docs.map(mapOverlayVersion)),
-    onError
+    onError ?? ((error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[adminConfigs] listenOverlayVersions permission-denied (expected for non-admin)");
+        }
+        callback([]);
+      } else {
+        console.error("[adminConfigs] listenOverlayVersions error:", error);
+        captureException(error);
+      }
+    })
   );
 }
 
@@ -300,6 +334,7 @@ export function listenUiConfigContext(
   onError?: (error: unknown) => void
 ) {
   return onSnapshot(
+    "adminConfigs:listenUiConfigContext",
     doc(db, "adminUiConfigs", contextId),
     (snap) => {
       if (!snap.exists()) {
@@ -318,7 +353,17 @@ export function listenUiConfigContext(
             : undefined,
       });
     },
-    onError
+    onError ?? ((error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[adminConfigs] listenUiConfigContext permission-denied (expected for non-admin)");
+        }
+        callback(null);
+      } else {
+        console.error("[adminConfigs] listenUiConfigContext error:", error);
+        captureException(error);
+      }
+    })
   );
 }
 
@@ -328,6 +373,7 @@ export function listenOverlayContext(
   onError?: (error: unknown) => void
 ) {
   return onSnapshot(
+    "adminConfigs:listenOverlayContext",
     doc(db, "adminOverlays", overlayId),
     (snap) => {
       if (!snap.exists()) {
@@ -346,7 +392,17 @@ export function listenOverlayContext(
             : undefined,
       });
     },
-    onError
+    onError ?? ((error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[adminConfigs] listenOverlayContext permission-denied (expected for non-admin)");
+        }
+        callback(null);
+      } else {
+        console.error("[adminConfigs] listenOverlayContext error:", error);
+        captureException(error);
+      }
+    })
   );
 }
 
@@ -362,6 +418,7 @@ export function listenPublishedUiConfig(
     limit(1)
   );
   return onSnapshot(
+    "adminConfigs:listenPublishedUiConfig",
     q,
     (snap) => {
       if (snap.empty) {
@@ -370,7 +427,17 @@ export function listenPublishedUiConfig(
       }
       callback(mapUiConfigVersion(snap.docs[0]));
     },
-    onError
+    onError ?? ((error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[adminConfigs] listenPublishedUiConfig permission-denied (expected for non-admin)");
+        }
+        callback(null);
+      } else {
+        console.error("[adminConfigs] listenPublishedUiConfig error:", error);
+        captureException(error);
+      }
+    })
   );
 }
 
@@ -386,6 +453,7 @@ export function listenPublishedOverlay(
     limit(1)
   );
   return onSnapshot(
+    "adminConfigs:listenPublishedOverlay",
     q,
     (snap) => {
       if (snap.empty) {
@@ -394,7 +462,17 @@ export function listenPublishedOverlay(
       }
       callback(mapOverlayVersion(snap.docs[0]));
     },
-    onError
+    onError ?? ((error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[adminConfigs] listenPublishedOverlay permission-denied (expected for non-admin)");
+        }
+        callback(null);
+      } else {
+        console.error("[adminConfigs] listenPublishedOverlay error:", error);
+        captureException(error);
+      }
+    })
   );
 }
 

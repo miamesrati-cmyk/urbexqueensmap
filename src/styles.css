@@ -1086,6 +1086,89 @@ body,
   pointer-events: auto;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   STYLE SWITCH OVERLAY: Cinematic transition (premium feel)
+   ═══════════════════════════════════════════════════════════════ */
+.uq-style-switch-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+  z-index: 50; /* Above map, below UI controls */
+}
+
+.uq-style-switch-overlay.is-on {
+  opacity: 1;
+}
+
+.uq-style-switch-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(1200px 700px at 20% 10%, rgba(150, 120, 255, 0.14), transparent 55%),
+    radial-gradient(900px 600px at 80% 30%, rgba(80, 220, 255, 0.10), transparent 55%),
+    linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0.35));
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+/* 🎞️ Ultra-premium: Grain animation during crossfade (Backrooms luxe) */
+.uq-style-switch-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px),
+    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  background-size: 100% 100%;
+  pointer-events: none;
+}
+
+/* ✅ Animation triggers ONLY when .is-on is present (guarantees restart on each toggle) */
+.uq-style-switch-overlay.is-on::after {
+  animation: uq-grain-drift 0.8s ease-out forwards;
+}
+
+@keyframes uq-grain-drift {
+  0% {
+    opacity: 0;
+    background-position: 0% 0%;
+  }
+  30% {
+    opacity: 0.22; /* ✅ OLED-safe peak (vs 0.28) */
+  }
+  100% {
+    opacity: 0;
+    background-position: -8px -8px;
+  }
+}
+
+/* ✅ Accessibility: reduced-motion users get static subtle veil (no drift) */
+@media (prefers-reduced-motion: reduce) {
+  .uq-style-switch-overlay.is-on::after {
+    animation: none;
+    opacity: 0.12; /* Static subtle grain (no animation) */
+  }
+}
+
+.uq-style-switch-hint {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(10,10,18,0.55);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+}
+
 /* ✅ FIX: Force map canvas behind UI layers (prevent overlay interception) */
 .mapboxgl-canvas-container {
   z-index: 1;
@@ -1171,6 +1254,16 @@ body,
   left: 18px;
   width: min(260px, 76vw);
   align-items: flex-start;
+  /* 🧬 NEUTRALISATION FANTÔME — slot UI inutilisé pour le moment */
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  pointer-events: none !important;
 }
 
 .map-zone-right {
@@ -33082,6 +33175,64 @@ html[data-qa-avatar="off"] .topbar-avatar::after {
     0 18px 32px rgba(0, 0, 0, 0.80),
     0 0 30px var(--uq-overlay-halo),
     0 0 12px rgba(163, 86, 255, 0.24);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PREMIUM: Style switch loading state + micro-animations
+   ═══════════════════════════════════════════════════════════════ */
+.route-map .map-pro-pill.is-loading {
+  opacity: 0.75;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.route-map .map-pro-pill:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.route-map .map-pro-pill--style {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* 🔒 PRO LOCK: Locked state for non-Pro features */
+.route-map .map-pro-pill.is-locked {
+  position: relative;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(147, 112, 219, 0.08));
+  border-color: rgba(255, 215, 0, 0.25);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer; /* Allow click to show paywall */
+}
+
+.route-map .map-pro-pill.is-locked:hover {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.12), rgba(147, 112, 219, 0.12));
+  border-color: rgba(255, 215, 0, 0.35);
+  color: rgba(255, 255, 255, 0.85);
+  transform: translateY(0); /* No press effect */
+}
+
+.map-pro-pill__lock-icon {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.map-pro-pill__spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-left: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  animation: uq-spinner-rotate 0.6s linear infinite;
+}
+
+@keyframes uq-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .route-map .map-pro-bar .map-pro-pill + .map-pro-pill::before {

@@ -8,11 +8,64 @@ const STYLE_BUTTONS = [
   { value: "satellite", label: "SATELLITE" },
 ] as const;
 
+// 🚀 Preload Satellite style for instant first switch (ultra-premium)
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || "";
+
+/**
+ * Intelligent preload: parse style JSON → extract exact sprite URLs
+ * Guarantees cache match even if provider changes
+ */
+async function preloadSatelliteStyle() {
+  if (!MAPBOX_TOKEN) return;
+  
+  const styleJsonUrl = `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12?access_token=${MAPBOX_TOKEN}`;
+  
+  try {
+    // 1) Fetch style JSON (warm cache for setStyle call)
+    const response = await fetch(styleJsonUrl, { 
+      mode: "cors", 
+      priority: "low" as any 
+    });
+    
+    if (!response.ok) return;
+    
+    const styleJson = await response.json();
+    
+    // 2) Extract exact sprite base URL from style JSON
+    const spriteBase = styleJson.sprite;
+    if (!spriteBase) return;
+    
+    // 3) Preload sprite assets (exactly what Mapbox will request)
+    const spriteUrls = [
+      `${spriteBase}@2x.png`,    // High-DPI sprite image
+      `${spriteBase}@2x.json`,   // Sprite metadata
+      `${spriteBase}.png`,       // Fallback 1x
+    ];
+    
+    // Fire-and-forget preloads (non-blocking)
+    spriteUrls.forEach(url => {
+      const img = new Image();
+      img.src = url;
+    });
+    
+    if (import.meta.env.DEV) {
+      console.log("[PRELOAD] ✅ Satellite style + sprites warmed", { spriteBase });
+    }
+  } catch (err) {
+    // Silent fail - preload is UX optimization, not critical
+    if (import.meta.env.DEV) {
+      console.log("[PRELOAD] Failed (non-critical)", err);
+    }
+  }
+}
+
 type Props = {
   styleValue: MapStyleValue;
   onStyleChange: (value: MapStyleValue) => void;
+  isStyleSwitching?: boolean; // ✅ Loading state for smooth transition
   epicFilterActive: boolean;
-  ghostFilterActive: boolean;
+  ghostFilterActive: boolean; // Legacy: true if ghostEchoMode !== "off"
+  ghostEchoMode?: "off" | "lite" | "intel"; // ✅ NEW: Ghost Echo tier
   onEpicToggle: () => void;
   onGhostToggle: () => void;
   // 🎯 Nouvelles options PRO
@@ -31,8 +84,10 @@ type Props = {
 export default function MapProPanel({
   styleValue,
   onStyleChange,
+  isStyleSwitching = false,
   epicFilterActive,
   ghostFilterActive,
+  ghostEchoMode = "off",
   onEpicToggle,
   onGhostToggle,
   isProUser = false,
@@ -50,6 +105,16 @@ export default function MapProPanel({
   const handleStyleClick = (value: MapStyleValue) => (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     if (value === styleValue) return;
+    
+    // 🔒 CRITICAL: Guard Pro-only styles (Satellite)
+    if (value === "satellite" && !isProUser) {
+      if (import.meta.env.DEV) {
+        console.warn("[ACCESS] Satellite style blocked: non-Pro user");
+      }
+      onUpgradeRequired?.();
+      return;
+    }
+    
     onStyleChange(value);
   };
 
@@ -62,6 +127,11 @@ export default function MapProPanel({
     epic: null,
     ghost: null,
   });
+
+  // 🚀 Ultra-premium: Preload Satellite style on mount for instant first switch
+  useEffect(() => {
+    preloadSatelliteStyle();
+  }, []);
 
   useEffect(() => {
     const timers = filterTimersRef.current;
@@ -96,18 +166,29 @@ export default function MapProPanel({
 
   return (
     <div className="map-pro-panel-compact">
-      {STYLE_BUTTONS.map((option) => (
-        <button
-          type="button"
-          key={option.value}
-          data-style={option.value}
-          className={`map-pro-pill map-pro-pill--style ${styleValue === option.value ? "is-active" : ""}`}
-          onClick={handleStyleClick(option.value)}
-          aria-pressed={styleValue === option.value}
-        >
-          {option.label}
-        </button>
-      ))}
+      {STYLE_BUTTONS.map((option) => {
+        const isLocked = option.value === "satellite" && !isProUser;
+        return (
+          <button
+            type="button"
+            key={option.value}
+            data-style={option.value}
+            className={`map-pro-pill map-pro-pill--style ${styleValue === option.value ? "is-active" : ""} ${
+              isStyleSwitching ? "is-loading" : ""
+            } ${isLocked ? "is-locked" : ""}`}
+            onClick={handleStyleClick(option.value)}
+            aria-pressed={styleValue === option.value}
+            aria-label={isLocked ? `${option.label} - Réservé PRO` : option.label}
+            disabled={isStyleSwitching}
+          >
+            {isLocked && <span className="map-pro-pill__lock-icon" aria-hidden="true">👑</span>}
+            {option.label}
+            {isStyleSwitching && styleValue === option.value && (
+              <span className="map-pro-pill__spinner" aria-hidden="true" />
+            )}
+          </button>
+        );
+      })}
       <button
         type="button"
         data-testid="filter-epic"
@@ -126,28 +207,55 @@ export default function MapProPanel({
         data-testid="filter-ghost"
         className={`map-pro-pill map-pro-pill--filter ${ghostFilterActive ? "is-active" : ""} ${
           ghostPulse ? "is-activating" : ""
-        }`}
+        } ${ghostEchoMode === "intel" && isProUser ? "is-pro-mode" : ""}`}
         onClick={handleGhostFilterClick}
         aria-pressed={ghostFilterActive}
-        aria-label="Filtrer les spots Ghost"
-        title="Afficher les spots Ghost"
+        aria-label={
+          ghostEchoMode === "intel" 
+            ? "Ghost Echo Intel (Pro)" 
+            : ghostEchoMode === "lite" 
+            ? "Ghost Echo Lite" 
+            : "Activer Ghost Echo"
+        }
+        title={
+          ghostEchoMode === "intel" 
+            ? "Mode Intel: heatmaps + patterns exploitables" 
+            : ghostEchoMode === "lite" 
+            ? "Mode Lite: effet cosmétique" 
+            : "Activer Ghost Echo"
+        }
       >
         👻 GHOST
+        {ghostEchoMode === "intel" && <span style={{ marginLeft: "4px", fontSize: "10px" }}>⚡</span>}
+        {ghostEchoMode === "lite" && !isProUser && <span style={{ marginLeft: "4px", fontSize: "10px" }}>🌟</span>}
       </button>
 
       {/* 🎯 Nouvelles options PRO */}
       {onClusterToggle && (
         <button
           type="button"
-          className={`map-pro-pill map-pro-pill--feature ${clusteringEnabled ? "is-active" : ""}`}
+          data-testid="toggle-clustering"
+          className={`map-pro-pill map-pro-pill--feature ${clusteringEnabled ? "is-active" : ""} ${!isProUser ? "is-locked" : ""}`}
           onClick={(e) => {
             e.preventDefault();
+            
+            // 🔒 GATE: Clustering Pro-only
+            if (!isProUser) {
+              if (import.meta.env.DEV) {
+                console.warn("[ACCESS] Clustering blocked: non-Pro user");
+              }
+              onUpgradeRequired?.();
+              return;
+            }
+            
             onClusterToggle();
           }}
+          disabled={!isProUser}
           aria-pressed={clusteringEnabled}
-          aria-label="Regroupement des spots"
-          title="Regroupe les lieux proches et révèle l'essentiel."
+          aria-label={isProUser ? "Regroupement des spots" : "Clustering - Réservé PRO"}
+          title={isProUser ? "Regroupe les lieux proches et révèle l'essentiel" : "Clusters réservés aux explorateurs PRO"}
         >
+          {!isProUser && <span className="map-pro-pill__lock-icon">👑</span>}
           🔍 CLUSTER
         </button>
       )}

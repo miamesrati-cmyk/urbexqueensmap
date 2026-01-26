@@ -7,6 +7,7 @@ import {
   evaluateAchievementsForPlaceDone,
   type PlaceDoneMetadata,
 } from "./achievements";
+import { captureException } from "../lib/monitoring";
 
 export type UserPlaceState = {
   saved?: boolean;
@@ -34,32 +35,47 @@ export function listenUserPlaces(
 
   const ref = doc(db, "userPlaces", userId);
 
-  const unsub = onSnapshot(ref, (snap) => {
-    const data = snap.data() as { places?: UserPlacesMap } | undefined;
-    const places = data?.places || {};
-    console.log("[TOGGLE][snapshot] Raw data from Firestore:", {
-      exists: snap.exists(),
-      data: data,
-      placesKeys: Object.keys(places),
-      placesCount: Object.keys(places).length,
-    });
-    if (import.meta.env.DEV) {
-      const traceInfo =
-        typeof window !== "undefined"
-          ? (window as any).__UQ_LAST_TOGGLE_TRACE__
-          : undefined;
-      console.info("[TOGGLE][snapshot]", {
-        traceId: traceInfo?.traceId,
-        placeId: traceInfo?.placeId,
-        hasPlaces: !!data?.places,
-        snapPlace:
-          traceInfo?.placeId && places
-            ? places[traceInfo.placeId]
-            : undefined,
+  const unsub = onSnapshot(
+    ref,
+    (snap) => {
+      const data = snap.data() as { places?: UserPlacesMap } | undefined;
+      const places = data?.places || {};
+      console.log("[TOGGLE][snapshot] Raw data from Firestore:", {
+        exists: snap.exists(),
+        data: data,
+        placesKeys: Object.keys(places),
+        placesCount: Object.keys(places).length,
       });
+      if (import.meta.env.DEV) {
+        const traceInfo =
+          typeof window !== "undefined"
+            ? (window as any).__UQ_LAST_TOGGLE_TRACE__
+            : undefined;
+        console.info("[TOGGLE][snapshot]", {
+          traceId: traceInfo?.traceId,
+          placeId: traceInfo?.placeId,
+          hasPlaces: !!data?.places,
+          snapPlace:
+            traceInfo?.placeId && places
+              ? places[traceInfo.placeId]
+              : undefined,
+        });
+      }
+      callback(places);
+    },
+    (error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[userPlaces] listenUserPlaces permission-denied (expected during boot/guest)");
+        }
+        callback({});
+      } else {
+        console.error("[userPlaces] listenUserPlaces error:", error);
+        captureException(error);
+        callback({});
+      }
     }
-    callback(places);
-  });
+  );
 
   return unsub;
 }

@@ -624,7 +624,7 @@ service cloud.firestore {
     }
 
     match /places/{placeId} {
-      allow read: if true;
+      allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if (
         (isSignedIn()
           && request.resource.data.addedBy == request.auth.uid
@@ -674,6 +674,15 @@ service cloud.firestore {
           && isSignedIn()
           && request.resource.data.uploadedByUid == request.auth.uid;
         allow delete: if hasAppCheckToken() && isSignedIn() && request.auth.uid == resource.data.uploadedByUid;
+      }
+
+      // 🔒 CRITIQUE: Pro-only data subcollection (investor-grade backend gating)
+      // Contains: historyFull, historyFullHtml, yearAbandoned, yearLastSeen, intel, decay
+      match /proData/{doc} {
+        // ✅ Backend enforced: Guest/Free CANNOT read this data (no SDK bypass possible)
+        allow read: if isSignedIn() && isPro();
+        // ✅ Only admin can write Pro data
+        allow write: if isAdmin();
       }
     }
 

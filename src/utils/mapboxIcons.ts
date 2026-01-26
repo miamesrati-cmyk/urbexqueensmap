@@ -106,22 +106,22 @@ export async function ensureMapboxIcons(
         return;
       }
 
-      // Wait a bit to let sprite load (race condition mitigation)
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Check again after waiting (sprite may have loaded)
+      // ✅ ROOT-CAUSE FIX: Don't race with sprite loading
+      // Just check immediately if icon exists. If not, styleimagemissing will handle it.
+      // This eliminates the 100ms timeout race that causes warnings.
       if (map.hasImage(iconName)) {
         if (verbose) {
-          console.log(`[ICONS] ✓ ${iconName} found in sprite`);
+          console.log(`[ICONS] ✓ ${iconName} already in style`);
         }
         return;
       }
 
-      // Icon not in sprite, use fallback
+      // Icon not in style yet - add fallback immediately
+      // (styleimagemissing will also try, but this is proactive)
       const fallback = createFallbackIcon(iconName);
       map.addImage(iconName, fallback);
       if (verbose) {
-        console.warn(`[ICONS] ⚠️ ${iconName} not in sprite, using fallback`);
+        console.log(`[ICONS] ➕ ${iconName} fallback added proactively`);
       }
     } catch (error) {
       console.error(`[ICONS] ❌ Failed to load ${iconName}:`, error);

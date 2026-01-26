@@ -117,6 +117,27 @@ import {
 } from "./utils/storage";
 import { captureException } from "./lib/monitoring";
 
+// 🔒 Type Window globals (UQ debug + SPAM detector)
+declare global {
+  interface Window {
+    mapboxgl?: typeof import("mapbox-gl");
+    __DEV__?: boolean;
+    __UQ_LAST_ERROR__?: {
+      type: string;
+      message: string;
+      stack?: string;
+    };
+    __UQ_LAST_TOGGLE_TRACE__?: {
+      traceId: string;
+      placeId: string;
+      newValue: boolean;
+      timestamp: number;
+    };
+    __UQ_PERMISSION_DENIED_TIMESTAMPS__?: number[];
+    __UQ_PERMISSION_DENIED_STACKS__?: Map<string, number>;
+  }
+}
+
 const APP_VERSION =
   import.meta.env.VITE_APP_VERSION ??
   import.meta.env.VITE_COMMIT_SHA ??
@@ -177,13 +198,126 @@ function installGlobalCrashGuard() {
   });
 
   window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
-    console.error("GLOBAL_REJECTION", event.reason);
+    const reason = event.reason;
+    
+    // 🔒 FILTER EXPECTED PERMISSION-DENIED (Auth initialization race condition)
+    // Firestore listeners may fire before Auth is fully initialized
+    // These are gracefully handled by onSnapshot error callbacks
+    if (
+      reason &&
+      typeof reason === "object" &&
+      "code" in reason &&
+      reason.code === "permission-denied"
+    ) {
+      // 🔒 SPAM DETECTOR v3: Stack fingerprinting to identify source
+      const now = Date.now();
+      if (!window.__UQ_PERMISSION_DENIED_TIMESTAMPS__) {
+        window.__UQ_PERMISSION_DENIED_TIMESTAMPS__ = [];
+      }
+      if (!window.__UQ_PERMISSION_DENIED_STACKS__) {
+        window.__UQ_PERMISSION_DENIED_STACKS__ = new Map();
+      }
+      
+      const timestamps = window.__UQ_PERMISSION_DENIED_TIMESTAMPS__;
+      const stackCounts = window.__UQ_PERMISSION_DENIED_STACKS__;
+      
+      // Extract stack fingerprint (first 6 lines)
+      const stack = String(reason?.stack ?? "");
+      const stackKey = stack.split("\n").slice(0, 6).join("\n");
+      
+      // Count occurrences per stack
+      stackCounts.set(stackKey, (stackCounts.get(stackKey) || 0) + 1);
+      
+      // Track timestamps in sliding window
+      timestamps.push(now);
+      const recentCount = timestamps.filter((t: number) => now - t < 5000).length;
+      
+      // Clean old timestamps
+      while (timestamps.length > 0 && now - timestamps[0] > 5000) {
+        timestamps.shift();
+      }
+      
+      // SPAM DETECTED: >2 in 5s = structural bug, escalate
+      if (recentCount > 2) {
+        // Build TOP 3 stacks by count
+        const sortedStacks = Array.from(stackCounts.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3);
+        
+        const mostCommonStack = sortedStacks[0]?.[0] || "";
+        const maxCount = sortedStacks[0]?.[1] || 0;
+        
+        console.error(
+          `[ACCESS] ❌ SPAM DETECTED: ${recentCount} permission-denied in 5000ms`,
+          { 
+            code: reason.code, 
+            message: reason.message || String(reason), 
+            context: "Firestore listener loop",
+            mostCommonCount: maxCount
+          }
+        );
+        
+        // ALWAYS log stack (no deduplication)
+        if (!mostCommonStack || mostCommonStack.trim() === "") {
+          console.error(
+            `[ACCESS] 🔍 NO STACK AVAILABLE`,
+            {
+              reasonName: reason?.name,
+              reasonMessage: reason?.message,
+              reasonCode: reason?.code,
+              reasonKeys: Object.keys(reason || {})
+            }
+          );
+        } else {
+          console.error(
+            `[ACCESS] 🔍 MOST COMMON STACK (${maxCount}x):`,
+            "\n" + mostCommonStack
+          );
+        }
+        
+        // Log TOP 3
+        if (sortedStacks.length > 1) {
+          console.error(
+            `[ACCESS] 📊 TOP 3 STACKS:`,
+            sortedStacks.map(([key, count], idx) => ({
+              rank: idx + 1,
+              count,
+              firstLine: key.split('\n')[0] || '(empty)'
+            }))
+          );
+        }
+        
+        captureException(
+          new Error(`[ACCESS] permission-denied SPAM: ${recentCount} in 5000ms (stack: ${mostCommonStack.split('\n')[0] || 'NO_STACK'})`)
+        );
+        event.preventDefault(); // Prevent browser logging
+        return;
+      }
+      
+      // 🔒 CRITICAL: Prevent browser from logging "Unhandled Promise Rejection"
+      event.preventDefault();
+      
+      // Log as warning (not error) — expected during app boot
+      console.warn(
+        "[ACCESS] ⚠️ Unhandled permission-denied (expected during boot)",
+        {
+          code: reason.code,
+          message: reason.message || String(reason),
+          context: "Firestore listener fired before Auth ready",
+        }
+      );
+      // Don't capture to monitoring (expected behavior, not a bug)
+      return;
+    }
+    
+    // Unexpected rejection → log as error and capture
+    console.error("GLOBAL_REJECTION", reason);
     (window as any).__UQ_LAST_ERROR__ = {
       type: "rejection",
-      message: String(event.reason?.message || event.reason),
-      stack: event.reason?.stack,
+      message: String(reason?.message || reason),
+      stack: reason?.stack,
     };
-    captureException(event.reason ?? event);
+    captureException(reason ?? event);
   });
 }
 

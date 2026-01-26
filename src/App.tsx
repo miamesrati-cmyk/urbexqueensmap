@@ -50,7 +50,7 @@ import {
   notificationTypeLabels,
 } from "./lib/notifications";
 import {
-  subscribeToUserNotifications,
+  listenUserNotifications,
   markAllUserNotificationsRead,
   markUserNotificationRead,
 } from "./services/notifications";
@@ -1240,7 +1240,7 @@ export default function App() {
     if (import.meta.env.DEV) {
       setNotificationItems(createNotificationSeed());
     }
-    const unsubscribe = subscribeToUserNotifications(user.uid, (items) => {
+    const unsubscribe = listenUserNotifications(user.uid, (items) => {
       logNotificationStorm(items);
       setNotificationItems(items);
     });

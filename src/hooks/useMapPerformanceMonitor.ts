@@ -188,12 +188,29 @@ export function useMapPerformanceMonitor(
     const source = map.getSource(sourceId) as GeoJSONSource | null;
     if (source) {
       const originalSetData = source.setData.bind(source);
+      const setDataErrors: number[] = [];
 
       source.setData = function (data: any) {
-        const endMonitor = monitorSourceData();
-        const result = originalSetData(data);
-        endMonitor();
-        return result;
+        try {
+          const endMonitor = monitorSourceData();
+          const result = originalSetData(data);
+          endMonitor();
+          return result;
+        } catch (error) {
+          const now = Date.now();
+          setDataErrors.push(now);
+          // Keep only errors in last 5s
+          const fiveSecondsAgo = now - 5000;
+          const recentErrors = setDataErrors.filter(t => t > fiveSecondsAgo);
+          setDataErrors.length = 0;
+          setDataErrors.push(...recentErrors);
+          if (recentErrors.length > 2) {
+            console.error("[PERF] setData error rate escalated (>2/5s)", { error, count: recentErrors.length });
+          } else if (import.meta.env.DEV) {
+            console.warn("[PERF] setData error", error);
+          }
+          throw error;
+        }
       };
     }
 

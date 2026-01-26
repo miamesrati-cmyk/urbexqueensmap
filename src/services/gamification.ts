@@ -8,6 +8,7 @@ import {
 import { onSnapshot } from "../lib/firestoreHelpers";
 import { db } from "../lib/firebase";
 import { ensureWritesAllowed } from "../lib/securityGuard";
+import { captureException } from "../lib/monitoring";
 
 export type UserGamification = {
   uid: string;
@@ -79,33 +80,48 @@ export function listenUserGamification(
 ) {
   const ref = doc(db, "userGamification", uid);
 
-  return onSnapshot(ref, async (snap) => {
-    if (snap.exists()) {
-      const data = snap.data() as any;
-      const xp = typeof data.xp === "number" ? data.xp : 0;
-      const level =
-        typeof data.level === "number" ? data.level : computeLevelFromXp(xp);
+  return onSnapshot(
+    ref,
+    async (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as any;
+        const xp = typeof data.xp === "number" ? data.xp : 0;
+        const level =
+          typeof data.level === "number" ? data.level : computeLevelFromXp(xp);
 
-      callback({
-        uid,
-        xp,
-        level,
-        completedQuests: Array.isArray(data.completedQuests)
-          ? data.completedQuests
-          : [],
-      });
-    } else {
-      const initial: UserGamification = {
-        uid,
-        xp: 0,
-        level: 1,
-        completedQuests: [],
-      };
-      ensureWritesAllowed();
-      await setDoc(ref, initial, { merge: true });
-      callback(initial);
+        callback({
+          uid,
+          xp,
+          level,
+          completedQuests: Array.isArray(data.completedQuests)
+            ? data.completedQuests
+            : [],
+        });
+      } else {
+        const initial: UserGamification = {
+          uid,
+          xp: 0,
+          level: 1,
+          completedQuests: [],
+        };
+        ensureWritesAllowed();
+        await setDoc(ref, initial, { merge: true });
+        callback(initial);
+      }
+    },
+    (error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[gamification] listenUserGamification permission-denied (expected during boot/guest)");
+        }
+        callback({ uid, xp: 0, level: 1, completedQuests: [] });
+      } else {
+        console.error("[gamification] listenUserGamification error:", error);
+        captureException(error);
+        callback({ uid, xp: 0, level: 1, completedQuests: [] });
+      }
     }
-  });
+  );
 }
 
 // Ajouter de l'XP de façon transactionnelle

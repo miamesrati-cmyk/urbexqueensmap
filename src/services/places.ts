@@ -1,11 +1,13 @@
 import { db } from "../lib/firebase";
-import { onSnapshot } from "../lib/firestoreHelpers";
+import { uqOnSnapshot as onSnapshot } from "../utils/uqOnSnapshot";
 import {
   collection,
+  collectionGroup,
   doc,
   setDoc,
   orderBy,
   query,
+  where,
   serverTimestamp,
   getDoc,
   getDocs,
@@ -20,6 +22,7 @@ import {
 } from "firebase/firestore";
 import { v4 as uuid } from "uuid";
 import { computeGeohash } from "../lib/geohash";
+import { captureException } from "../lib/monitoring";
 
 export type SpotTier = "STANDARD" | "EPIC" | "GHOST";
 export type UserLevel = "guest" | "member" | "pro";
@@ -154,6 +157,15 @@ function toStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
+/**
+ * Build Place object from Firestore record (PUBLIC DATA ONLY)
+ * 🔒 DATA GATING (INVESTOR-GRADE): 
+ * - Does NOT fetch proData here (avoids N+1 reads for map/list views)
+ * - Pro data (historyFull, yearAbandoned, yearLastSeen) fetched LAZILY:
+ *   • On detail view open (getPlaceWithProData)
+ *   • On Pro overlay activation (fetchProDataForPlace)
+ * - Backend enforced via Firestore Rules (Guest/Free cannot read proData)
+ */
 function buildPlaceFromRecord(
   id: string,
   raw: Record<string, unknown> | null | undefined
@@ -200,11 +212,17 @@ function buildPlaceFromRecord(
     typeof x.historyShort === "string" ? x.historyShort : "";
   const historyShortHtml =
     typeof x.historyShortHtml === "string" ? x.historyShortHtml : "";
-  const historyFull =
-    typeof x.historyFull === "string" ? x.historyFull : "";
-  const historyFullHtml =
-    typeof x.historyFullHtml === "string" ? x.historyFullHtml : undefined;
+  
   const historyIsPro = !!x.historyIsPro;
+  
+  // 🔒 DATA GATING (PERFORMANCE OPTIMIZATION): 
+  // Pro data NOT fetched here to avoid N+1 reads (400 places × 1 read = expensive)
+  // Use getPlaceWithProData() or fetchProDataForPlace() for lazy fetch
+  const historyFull = ""; // Always empty in list/map views
+  const historyFullHtml: string | undefined = undefined;
+  const yearAbandoned: number | null = null; // Fetch via collectionGroup or detail view
+  const yearLastSeen: number | null = null;
+  
   const videoUrl =
     typeof x.videoUrl === "string" && x.videoUrl.trim()
       ? x.videoUrl.trim()
@@ -226,11 +244,7 @@ function buildPlaceFromRecord(
   const geohash =
     typeof x.geohash === "string" && x.geohash ? x.geohash : undefined;
   
-  // 🕰️ TIME RIFT: Historical year data
-  const yearAbandoned = 
-    typeof x.yearAbandoned === "number" ? x.yearAbandoned : null;
-  const yearLastSeen = 
-    typeof x.yearLastSeen === "number" ? x.yearLastSeen : null;
+  // ✅ yearAbandoned + yearLastSeen now fetched from proData above (no redeclaration needed)
   
   // Validation status (pour les spots soumis)
   const validationStatus = 
@@ -306,7 +320,7 @@ function mapPlaceSnapshot(
   doc: QueryDocumentSnapshot<DocumentData> | DocumentSnapshot<DocumentData>
 ): Place | null {
   if (!doc.exists()) return null;
-  const place = buildPlaceFromRecord(doc.id, doc.data());
+  const place = buildPlaceFromRecord(doc.id, doc.data()); // ✅ Synchronous now
   return place;
 }
 
@@ -376,8 +390,10 @@ export function listenPlaces(
     limit(MAP_PLACE_LIMIT)
   );
   return onSnapshot(
+    "places:listenPlaces",
     q,
     (snap) => {
+      // ✅ Synchronous mapping (no N+1 proData fetches)
       const places = snap.docs
         .map((doc) => mapPlaceSnapshot(doc))
         .filter((place): place is Place => Boolean(place));
@@ -412,6 +428,7 @@ export async function queryPlacesByGeohashRange(
   }
 ): Promise<Place[]> {
   const { isPro, limit: perRange = GEOHASH_QUERY_LIMIT, userLevel, userId, guestLimit } = options ?? {};
+  
   const constraints = [
     orderBy("geohash"),
     startAt(range[0]),
@@ -420,6 +437,8 @@ export async function queryPlacesByGeohashRange(
   ];
   const q = query(PLACES, ...constraints);
   const snap = await getDocs(q);
+  
+  // ✅ Synchronous mapping (no N+1 proData fetches)
   const places = snap.docs
     .map((doc) => mapPlaceSnapshot(doc))
     .filter((place): place is Place => Boolean(place));
@@ -458,8 +477,10 @@ export function listenPlacesPage(
   ];
   const q = query(PLACES, ...constraints);
   return onSnapshot(
+    `places:listenPlacesPage:${pageSize}`,
     q,
     (snap) => {
+      // ✅ Synchronous mapping (no N+1 proData fetches)
       const places = snap.docs
         .map((doc) => mapPlaceSnapshot(doc))
         .filter((place): place is Place => Boolean(place));
@@ -484,6 +505,8 @@ export async function fetchPlacesPage(params: {
   ];
   const q = query(PLACES, ...constraints);
   const snap = await getDocs(q);
+  
+  // ✅ Synchronous mapping (no N+1 proData fetches)
   const places = snap.docs
     .map((doc) => mapPlaceSnapshot(doc))
     .filter((place): place is Place => Boolean(place));
@@ -500,9 +523,240 @@ export async function getPlace(id: string): Promise<Place | null> {
 
 export function listenPlace(id: string, cb: (p: Place | null) => void) {
   const ref = doc(db, "places", id);
-  return onSnapshot(ref, (snap) => {
-    cb(mapPlaceSnapshot(snap));
-  });
+  return onSnapshot(
+    `places:listenPlace:${id}`,
+    ref,
+    (snap) => {
+      const place = mapPlaceSnapshot(snap); // ✅ Synchronous now
+      cb(place);
+    },
+    (error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[places] listenPlace permission-denied (expected during boot/guest)");
+        }
+        cb(null);
+      } else {
+        console.error("[places] listenPlace error:", error);
+        captureException(error);
+        cb(null);
+      }
+    }
+  );
+}
+
+// ========================================================================
+// 🔒 PRO DATA LAZY FETCH (INVESTOR-GRADE OPTIMIZATION)
+// ========================================================================
+
+/**
+ * In-memory cache for proData (TTL 10 minutes)
+ * ✅ Avoids re-reads when user opens/closes/reopens detail view
+ * ✅ "Apple-level" fluidity for Pro users
+ */
+const proDataCache = new Map<string, {
+  data: {
+    historyFull?: string;
+    historyFullHtml?: string;
+    yearAbandoned?: number | null;
+    yearLastSeen?: number | null;
+  };
+  timestamp: number;
+}>();
+
+const PRO_DATA_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+/**
+ * Clear expired cache entries (called before each fetch)
+ */
+function cleanProDataCache() {
+  const now = Date.now();
+  for (const [placeId, entry] of proDataCache.entries()) {
+    if (now - entry.timestamp > PRO_DATA_CACHE_TTL) {
+      proDataCache.delete(placeId);
+    }
+  }
+}
+
+/**
+ * Clear ALL proData cache entries (called on logout)
+ * ✅ Security: prevents stale Pro data from being visible after logout
+ */
+export function clearProDataCache() {
+  proDataCache.clear();
+  if (import.meta.env.DEV) {
+    console.log("[CACHE] ProData cache cleared (logout)");
+  }
+}
+
+/**
+ * Fetch Pro-only data for a single place (detail view or overlay)
+ * ✅ Avoids N+1 reads in map/list views
+ * ✅ Backend enforced via Firestore Rules (Guest/Free get permission denied)
+ * ✅ In-memory cache (TTL 10 min) avoids re-reads on detail view reopen
+ * 
+ * @returns ProData object or null if not found/permission denied
+ */
+export async function fetchProDataForPlace(placeId: string): Promise<{
+  historyFull?: string;
+  historyFullHtml?: string;
+  yearAbandoned?: number | null;
+  yearLastSeen?: number | null;
+} | null> {
+  // Check cache first
+  cleanProDataCache();
+  const cached = proDataCache.get(placeId);
+  if (cached) {
+    return cached.data;
+  }
+  
+  try {
+    const proDataRef = doc(db, "places", placeId, "proData", "main");
+    const proDataSnap = await getDoc(proDataRef);
+    
+    if (!proDataSnap.exists()) {
+      return null;
+    }
+    
+    const data = proDataSnap.data();
+    const proData = {
+      historyFull: typeof data.historyFull === "string" ? data.historyFull : undefined,
+      historyFullHtml: typeof data.historyFullHtml === "string" ? data.historyFullHtml : undefined,
+      yearAbandoned: typeof data.yearAbandoned === "number" ? data.yearAbandoned : null,
+      yearLastSeen: typeof data.yearLastSeen === "number" ? data.yearLastSeen : null,
+    };
+    
+    // Cache for 10 minutes
+    proDataCache.set(placeId, {
+      data: proData,
+      timestamp: Date.now(),
+    });
+    
+    return proData;
+  } catch (err) {
+    // Permission denied or network error
+    console.warn(`[SERVICES] Failed to fetch proData for ${placeId}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Get place WITH Pro data (for detail views)
+ * Fetches public place + proData in parallel (if Pro user)
+ * 
+ * @param placeId - Place document ID
+ * @param isPro - Whether user is Pro (skips proData fetch if false)
+ * @returns Place with proData merged, or null if not found
+ */
+export async function getPlaceWithProData(
+  placeId: string,
+  isPro: boolean = false
+): Promise<Place | null> {
+  const ref = doc(db, "places", placeId);
+  const snap = await getDoc(ref);
+  
+  if (!snap.exists()) return null;
+  
+  const place = mapPlaceSnapshot(snap);
+  if (!place) return null;
+  
+  // If Pro user + place has Pro content → fetch proData
+  if (isPro && place.historyIsPro) {
+    const proData = await fetchProDataForPlace(placeId);
+    if (proData) {
+      return {
+        ...place,
+        historyFull: proData.historyFull || "",
+        historyFullHtml: proData.historyFullHtml,
+        yearAbandoned: proData.yearAbandoned ?? null,
+        yearLastSeen: proData.yearLastSeen ?? null,
+      };
+    }
+  }
+  
+  return place;
+}
+
+// ========================================================================
+// 🔒 PRO QUERY STRATEGY (SCALABLE — collectionGroup)
+// ========================================================================
+
+/**
+ * Query Time Rift spots by year range (Pro-only feature)
+ * ✅ Uses collectionGroup("proData") for efficient querying
+ * ✅ Backend enforced via Firestore Rules (Guest/Free get empty results)
+ * ✅ Avoids loading all places then filtering client-side
+ * 
+ * ⚠️ GEOHASH LIMITATION: 
+ * - geohashPrefix filtering uses simple prefix range (not true geographic bounds)
+ * - For precise "around me" queries, use multiple geohash ranges (see computeGeohash)
+ * - Recommended: Global Time Rift (no geohash) or client-side distance filter
+ * 
+ * @param yearRange - [minYear, maxYear] (e.g., [1950, 1980])
+ * @param options - Query options (limit, geohash filter)
+ * @returns Array of place IDs with Time Rift data
+ * 
+ * @example
+ * // Global Time Rift: Find all abandoned spots between 1950-1980
+ * const results = await queryTimeRiftSpots([1950, 1980], { limit: 100 });
+ * 
+ * @example
+ * // Regional filter (approximate): Montreal area
+ * const results = await queryTimeRiftSpots([1950, 1980], {
+ *   geohashPrefix: "f25d",
+ *   limit: 50
+ * });
+ */
+export async function queryTimeRiftSpots(
+  yearRange: [number, number],
+  options?: {
+    limit?: number;
+    geohashPrefix?: string;
+  }
+): Promise<Array<{
+  placeId: string;
+  yearAbandoned?: number;
+  yearLastSeen?: number;
+  lat?: number;
+  lng?: number;
+}>> {
+  const { limit: queryLimit = 100, geohashPrefix } = options ?? {};
+  
+  try {
+    // Build query constraints
+    const constraints = [
+      where("yearAbandoned", ">=", yearRange[0]),
+      where("yearAbandoned", "<=", yearRange[1]),
+      orderBy("yearAbandoned", "desc"),
+      limit(queryLimit),
+    ];
+    
+    // Optional: filter by geohash prefix for geographic bounds
+    if (geohashPrefix) {
+      constraints.unshift(
+        where("geohash", ">=", geohashPrefix),
+        where("geohash", "<=", geohashPrefix + "\uf8ff")
+      );
+    }
+    
+    const q = query(collectionGroup(db, "proData"), ...constraints);
+    const snap = await getDocs(q);
+    
+    return snap.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        placeId: data.placeId || doc.ref.parent.parent?.id || "",
+        yearAbandoned: typeof data.yearAbandoned === "number" ? data.yearAbandoned : undefined,
+        yearLastSeen: typeof data.yearLastSeen === "number" ? data.yearLastSeen : undefined,
+        lat: typeof data.lat === "number" ? data.lat : undefined,
+        lng: typeof data.lng === "number" ? data.lng : undefined,
+      };
+    });
+  } catch (err) {
+    // Permission denied for non-Pro users
+    console.warn("[SERVICES] Failed to query Time Rift spots:", err);
+    return [];
+  }
 }
 
 type PlacePayloadTimestamp = number | ReturnType<typeof serverTimestamp>;

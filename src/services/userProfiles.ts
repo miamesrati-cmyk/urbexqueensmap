@@ -18,6 +18,7 @@ import {
 import { onSnapshot } from "../lib/firestoreHelpers";
 import { db } from "../lib/firebase";
 import { ensureWritesAllowed } from "../lib/securityGuard";
+import { captureException } from "../lib/monitoring";
 
 export type UserProfile = {
   displayName: string | null;
@@ -319,13 +320,28 @@ export async function getUserProfile(uid: string): Promise<UserProfile> {
 
 export function listenUserProfile(uid: string, cb: (p: UserProfile) => void) {
   const ref = doc(db, "users", uid);
-  return onSnapshot(ref, (snap) => {
-    if (!snap.exists()) {
-      cb(DEFAULT_PROFILE);
-      return;
+  return onSnapshot(
+    ref,
+    (snap) => {
+      if (!snap.exists()) {
+        cb(DEFAULT_PROFILE);
+        return;
+      }
+      cb({ ...DEFAULT_PROFILE, ...(snap.data() as any) });
+    },
+    (error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[userProfiles] listenUserProfile permission-denied (expected during boot/guest)");
+        }
+        cb(DEFAULT_PROFILE);
+      } else {
+        console.error("[userProfiles] listenUserProfile error:", error);
+        captureException(error);
+        cb(DEFAULT_PROFILE);
+      }
     }
-    cb({ ...DEFAULT_PROFILE, ...(snap.data() as any) });
-  });
+  );
 }
 
 export async function upsertUserProfile(

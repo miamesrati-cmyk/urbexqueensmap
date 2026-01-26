@@ -14,6 +14,7 @@ import {
 import { onSnapshot } from "../lib/firestoreHelpers";
 import { db } from "../lib/firebase";
 import { ensureWritesAllowed } from "../lib/securityGuard";
+import { captureException } from "../lib/monitoring";
 
 export type Conversation = {
   id: string;
@@ -64,20 +65,35 @@ export function listenConversations(
   cb: (convs: Conversation[]) => void
 ) {
   const q = query(CONV, where("participantIds", "array-contains", uid), orderBy("lastMessageAt", "desc"));
-  return onSnapshot(q, (snap) => {
-    const out: Conversation[] = [];
-    snap.forEach((d) => {
-      const x: any = d.data();
-      out.push({
-        id: d.id,
-        participantIds: x.participantIds ?? [],
-        lastMessageText: x.lastMessageText,
-        lastMessageAt: x.lastMessageAt?.toMillis?.() ?? x.lastMessageAt,
-        lastMessageSender: x.lastMessageSender,
+  return onSnapshot(
+    q,
+    (snap) => {
+      const out: Conversation[] = [];
+      snap.forEach((d) => {
+        const x: any = d.data();
+        out.push({
+          id: d.id,
+          participantIds: x.participantIds ?? [],
+          lastMessageText: x.lastMessageText,
+          lastMessageAt: x.lastMessageAt?.toMillis?.() ?? x.lastMessageAt,
+          lastMessageSender: x.lastMessageSender,
+        });
       });
-    });
-    cb(out);
-  });
+      cb(out);
+    },
+    (error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[dm] listenConversations permission-denied (expected during boot/guest)");
+        }
+        cb([]);
+      } else {
+        console.error("[dm] listenConversations error:", error);
+        captureException(error);
+        cb([]);
+      }
+    }
+  );
 }
 
 export function listenMessages(
@@ -86,21 +102,36 @@ export function listenMessages(
 ) {
   const col = collection(db, "conversations", conversationId, "messages");
   const q = query(col, orderBy("createdAt", "asc"));
-  return onSnapshot(q, (snap) => {
-    const out: Message[] = [];
-    snap.forEach((d) => {
-      const x: any = d.data();
-      out.push({
-        id: d.id,
-        fromUid: x.fromUid,
-        text: x.text ?? "",
-        mediaUrl: x.mediaUrl,
-        createdAt: x.createdAt?.toMillis?.() ?? x.createdAt ?? Date.now(),
-        seenBy: x.seenBy ?? [],
+  return onSnapshot(
+    q,
+    (snap) => {
+      const out: Message[] = [];
+      snap.forEach((d) => {
+        const x: any = d.data();
+        out.push({
+          id: d.id,
+          fromUid: x.fromUid,
+          text: x.text ?? "",
+          mediaUrl: x.mediaUrl,
+          createdAt: x.createdAt?.toMillis?.() ?? x.createdAt ?? Date.now(),
+          seenBy: x.seenBy ?? [],
+        });
       });
-    });
-    cb(out);
-  });
+      cb(out);
+    },
+    (error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[dm] listenMessages permission-denied (expected during boot/guest)");
+        }
+        cb([]);
+      } else {
+        console.error("[dm] listenMessages error:", error);
+        captureException(error);
+        cb([]);
+      }
+    }
+  );
 }
 
 export async function sendMessage(input: {
@@ -111,19 +142,30 @@ export async function sendMessage(input: {
 }) {
   ensureWritesAllowed();
   const col = collection(db, "conversations", input.conversationId, "messages");
-  await addDoc(col, {
-    fromUid: input.fromUid,
-    text: input.text,
-    mediaUrl: input.mediaUrl ?? null,
-    createdAt: serverTimestamp(),
-    seenBy: [input.fromUid],
-    lastWriteTime: serverTimestamp(),
-  });
+  try {
+    await addDoc(col, {
+      fromUid: input.fromUid,
+      text: input.text,
+      mediaUrl: input.mediaUrl ?? null,
+      createdAt: serverTimestamp(),
+      seenBy: [input.fromUid],
+      lastWriteTime: serverTimestamp(),
+    });
 
-  await updateDoc(doc(db, "conversations", input.conversationId), {
-    lastMessageText: input.text,
-    lastMessageAt: serverTimestamp(),
-    lastMessageSender: input.fromUid,
-    lastWriteTime: serverTimestamp(),
-  });
+    await updateDoc(doc(db, "conversations", input.conversationId), {
+      lastMessageText: input.text,
+      lastMessageAt: serverTimestamp(),
+      lastMessageSender: input.fromUid,
+      lastWriteTime: serverTimestamp(),
+    });
+  } catch (e: any) {
+    if (e?.code === "permission-denied") {
+      if (import.meta.env.DEV) {
+        console.warn(`[sendMessage] permission-denied: conversationId=${input.conversationId}`);
+      }
+    } else {
+      captureException(e);
+    }
+    throw e;
+  }
 }

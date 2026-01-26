@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { onSnapshot } from "../lib/firestoreHelpers";
 import { db } from "../lib/firebase";
+import { captureException } from "../lib/monitoring";
 import { ensureWritesAllowed } from "../lib/securityGuard";
 
 export type Follow = {
@@ -62,36 +63,66 @@ function timestampToMillis(value: unknown): number {
 
 export function listenFollowers(uid: string, cb: (f: Follow[]) => void) {
   const col = followersCollection(uid);
-  return onSnapshot(col, (snap) => {
-    const out: Follow[] = [];
-    snap.forEach((d) => {
-      const data: any = d.data();
-      out.push({
-        id: d.id,
-        fromUid: d.id,
-        toUid: uid,
-        createdAt: timestampToMillis(data.createdAt),
+  return onSnapshot(
+    col,
+    (snap) => {
+      const out: Follow[] = [];
+      snap.forEach((d) => {
+        const data: any = d.data();
+        out.push({
+          id: d.id,
+          fromUid: d.id,
+          toUid: uid,
+          createdAt: timestampToMillis(data.createdAt),
+        });
       });
-    });
-    cb(out);
-  });
+      cb(out);
+    },
+    (error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[follows] listenFollowers permission-denied (expected during boot/guest)");
+        }
+        cb([]);
+      } else {
+        console.error("[follows] listenFollowers error:", error);
+        captureException(error);
+        cb([]);
+      }
+    }
+  );
 }
 
 export function listenFollowing(uid: string, cb: (f: Follow[]) => void) {
   const col = followingCollection(uid);
-  return onSnapshot(col, (snap) => {
-    const out: Follow[] = [];
-    snap.forEach((d) => {
-      const data: any = d.data();
-      out.push({
-        id: d.id,
-        fromUid: uid,
-        toUid: d.id,
-        createdAt: timestampToMillis(data.createdAt),
+  return onSnapshot(
+    col,
+    (snap) => {
+      const out: Follow[] = [];
+      snap.forEach((d) => {
+        const data: any = d.data();
+        out.push({
+          id: d.id,
+          fromUid: uid,
+          toUid: d.id,
+          createdAt: timestampToMillis(data.createdAt),
+        });
       });
-    });
-    cb(out);
-  });
+      cb(out);
+    },
+    (error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[follows] listenFollowing permission-denied (expected during boot/guest)");
+        }
+        cb([]);
+      } else {
+        console.error("[follows] listenFollowing error:", error);
+        captureException(error);
+        cb([]);
+      }
+    }
+  );
 }
 
 export async function fetchFollowingForUser(uid: string): Promise<Follow[]> {
@@ -146,19 +177,33 @@ export function listenFollowRequests(
   cb: (requests: FollowRequest[]) => void
 ) {
   const col = collection(db, "users", uid, "followRequests");
-  return onSnapshot(col, (snap) => {
-    const out: FollowRequest[] = [];
-    snap.forEach((d) => {
-      const x: any = d.data();
-      out.push({
-        id: d.id,
-        fromUid: x.fromUid,
-        status: x.status ?? "pending",
-        createdAt: x.createdAt?.toMillis?.() ?? x.createdAt ?? Date.now(),
+  return onSnapshot(
+    col,
+    (snap) => {
+      const out: FollowRequest[] = [];
+      snap.forEach((d) => {
+        const x: any = d.data();
+        out.push({
+          id: d.id,
+          fromUid: x.fromUid,
+          status: x.status ?? "pending",
+          createdAt: x.createdAt?.toMillis?.() ?? x.createdAt ?? Date.now(),
+        });
       });
-    });
-    cb(out);
-  });
+      cb(out);
+    },
+    (error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[follows] listenFollowRequests permission-denied (expected for guest/other user)");
+        }
+        cb([]);
+      } else {
+        console.error("[follows] listenFollowRequests error:", error);
+        captureException(error);
+      }
+    }
+  );
 }
 
 export async function requestFollow(profileUid: string, fromUid: string) {

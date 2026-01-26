@@ -206,6 +206,7 @@ export default function MapView({
 }: MapViewProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const destroyedRef = useRef(false); // 🔒 WEBGL LOCK: prevent double-destroy + late mutations
   const resizeObsRef = useRef<ResizeObserver | null>(null);
   const loadStateIntervalRef = useRef<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -485,6 +486,9 @@ export default function MapView({
       return;
     }
 
+    // 🔒 WEBGL LOCK: Reset destroyed flag at start of effect
+    destroyedRef.current = false;
+
     const styleForMap = resolvedStyleUrlRef.current;
     lastStyleUrlRef.current = styleForMap;
     let mapInstance: mapboxgl.Map | null = null;
@@ -573,8 +577,12 @@ export default function MapView({
       if (typeof window === "undefined") return;
       cancelStableResizeFrames();
       layoutStableResizeFramesRef.current.first = window.requestAnimationFrame(() => {
+        // 🔒 WEBGL LOCK: Skip if map destroyed
+        if (destroyedRef.current || !mapRef.current) return;
         layoutStableResizeFramesRef.current.first = null;
           layoutStableResizeFramesRef.current.second = window.requestAnimationFrame(() => {
+            // 🔒 WEBGL LOCK: Skip if map destroyed
+            if (destroyedRef.current || !mapRef.current) return;
             layoutStableResizeFramesRef.current.second = null;
             const canvasElement = canvasRef.current;
             if (!canvasElement) return;
@@ -584,7 +592,7 @@ export default function MapView({
               latestRect.height !== referenceRect.height
             ) {
               try {
-                map.resize();
+                mapRef.current.resize();
                 markBootResized();
               } catch {
                 // Resize may fail if map was removed.
@@ -637,8 +645,10 @@ export default function MapView({
       console.log("[UQ][MAP_LOADED]");
       addDefaultControls();
       requestAnimationFrame(() => {
+        // 🔒 WEBGL LOCK: Skip if map destroyed
+        if (destroyedRef.current || !mapRef.current) return;
         try {
-          map.resize();
+          mapRef.current.resize();
           markBootResized();
         } catch {
           // Resize may fail if the map was removed early.
@@ -728,8 +738,10 @@ export default function MapView({
         : null;
     const ro = ResizeObserverCtor
       ? new ResizeObserverCtor(() => {
+          // 🔒 WEBGL LOCK: Skip resize if map destroyed
+          if (destroyedRef.current || !mapRef.current) return;
           try {
-            map.resize();
+            mapRef.current.resize();
           } catch {
             // ResizeObserver can fire after unmount; ignore.
           }
@@ -741,6 +753,15 @@ export default function MapView({
     }
 
     return () => {
+      // 🔒 WEBGL LOCK: Idempotent cleanup (prevent double-destroy)
+      if (destroyedRef.current) {
+        if (import.meta.env.DEV) {
+          console.warn("[MAP] Cleanup called twice, skipping");
+        }
+        return;
+      }
+      destroyedRef.current = true;
+
       clearBootTimer();
       clearLoadInterval();
       clearFailureTimer();
@@ -760,6 +781,11 @@ export default function MapView({
         }
         ro?.disconnect();
         map.remove();
+      } catch (cleanupError) {
+        // 🔒 WEBGL LOCK: Swallow cleanup errors (map may be partially destroyed)
+        if (import.meta.env.DEV) {
+          console.warn("[MAP] Cleanup error (tolerated):", cleanupError);
+        }
       } finally {
         controlsAddedRef.current = false;
         mapRef.current = null;

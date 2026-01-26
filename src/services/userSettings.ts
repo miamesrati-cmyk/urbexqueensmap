@@ -1,6 +1,7 @@
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { ensureWritesAllowed } from "../lib/securityGuard";
+import { captureException } from "../lib/monitoring";
 export type { UserSettings } from "../types/UserSettings";
 import type { UserSettings } from "../types/UserSettings";
 
@@ -66,24 +67,46 @@ export async function loadSettingsFromFirestore(
   options: { persistLocal?: boolean } = {}
 ): Promise<UserSettings> {
   const ref = doc(db, "userSettings", uid);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return getDefaultSettings();
+  try {
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return getDefaultSettings();
 
-  const data = snap.data() as Partial<UserSettings>;
-  const merged = { ...DEFAULT_SETTINGS, ...data };
-  // Harmonise legacy/new keys
-  merged.notifyNewSpotsNearby =
-    merged.notifyNewSpotsNearby ?? merged.notifyNewSpotsNearMe ?? false;
-  merged.notifyNewSpotsNearMe = merged.notifyNewSpotsNearby;
-  if (options.persistLocal !== false) {
-    saveSettingsToLocal(merged);
+    const data = snap.data() as Partial<UserSettings>;
+    const merged = { ...DEFAULT_SETTINGS, ...data };
+    // Harmonise legacy/new keys
+    merged.notifyNewSpotsNearby =
+      merged.notifyNewSpotsNearby ?? merged.notifyNewSpotsNearMe ?? false;
+    merged.notifyNewSpotsNearMe = merged.notifyNewSpotsNearby;
+    if (options.persistLocal !== false) {
+      saveSettingsToLocal(merged);
+    }
+    return merged;
+  } catch (e: any) {
+    if (e?.code === "permission-denied") {
+      if (import.meta.env.DEV) {
+        console.warn(`[loadSettingsFromFirestore] permission-denied: uid=${uid}`);
+      }
+      return getDefaultSettings();
+    }
+    captureException(e);
+    return getDefaultSettings();
   }
-  return merged;
 }
 
 export async function saveSettingsToFirestore(uid: string, settings: UserSettings) {
   ensureWritesAllowed();
   const ref = doc(db, "userSettings", uid);
-  await setDoc(ref, settings, { merge: true });
-  saveSettingsToLocal(settings);
+  try {
+    await setDoc(ref, settings, { merge: true });
+    saveSettingsToLocal(settings);
+  } catch (e: any) {
+    if (e?.code === "permission-denied") {
+      if (import.meta.env.DEV) {
+        console.warn(`[saveSettingsToFirestore] permission-denied: uid=${uid}`);
+      }
+    } else {
+      captureException(e);
+    }
+    throw e;
+  }
 }

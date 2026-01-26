@@ -11,6 +11,7 @@ import { db } from "../lib/firebase";
 import { ensureWritesAllowed } from "../lib/securityGuard";
 import { applyXpDeltaInTransaction } from "./gamification";
 import type { SpotTier, Place } from "./places";
+import { captureException } from "../lib/monitoring";
 
 export type AchievementTier = "COMMON" | "RARE" | "LEGEND" | "GHOST";
 
@@ -201,18 +202,33 @@ export function listenUserAchievements(
   }
 
   const ref = collection(db, "users", uid, "achievements");
-  const unsub = onSnapshot(ref, (snapshot) => {
-    const next: Record<string, UserAchievementRecord> = {};
-    snapshot.forEach((doc) => {
-      const data = doc.data() as DocumentData;
-      next[doc.id] = {
-        unlockedAt: toMillis(data.unlockedAt),
-        xp: typeof data.xp === "number" ? data.xp : 0,
-        source: typeof data.source === "string" ? data.source : undefined,
-      };
-    });
-    callback(next);
-  });
+  const unsub = onSnapshot(
+    ref,
+    (snapshot) => {
+      const next: Record<string, UserAchievementRecord> = {};
+      snapshot.forEach((doc) => {
+        const data = doc.data() as DocumentData;
+        next[doc.id] = {
+          unlockedAt: toMillis(data.unlockedAt),
+          xp: typeof data.xp === "number" ? data.xp : 0,
+          source: typeof data.source === "string" ? data.source : undefined,
+        };
+      });
+      callback(next);
+    },
+    (error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[achievements] listenUserAchievements permission-denied (expected during boot/guest)");
+        }
+        callback({});
+      } else {
+        console.error("[achievements] listenUserAchievements error:", error);
+        captureException(error);
+        callback({});
+      }
+    }
+  );
 
   return unsub;
 }

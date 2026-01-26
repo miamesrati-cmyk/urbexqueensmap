@@ -13,6 +13,7 @@ import {
 import { onSnapshot } from "../lib/firestoreHelpers";
 import { db } from "../lib/firebase";
 import { ensureWritesAllowed } from "../lib/securityGuard";
+import { captureException } from "../lib/monitoring";
 import type {
   IntegrationSettings,
   ShopCustomer,
@@ -68,7 +69,17 @@ export function listenProducts(cb: (products: ShopProduct[]) => void, onError?: 
       });
       cb(items);
     },
-    onError
+    onError ?? ((error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[shop] listenProducts permission-denied (expected for non-admin)");
+        }
+        cb([]);
+      } else {
+        console.error("[shop] listenProducts error:", error);
+        captureException(error);
+      }
+    })
   );
 }
 
@@ -144,7 +155,17 @@ export function listenCustomers(cb: (customers: ShopCustomer[]) => void, onError
       });
       cb(items);
     },
-    onError
+    onError ?? ((error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[shop] listenCustomers permission-denied (expected for non-admin)");
+        }
+        cb([]);
+      } else {
+        console.error("[shop] listenCustomers error:", error);
+        captureException(error);
+      }
+    })
   );
 }
 
@@ -218,7 +239,17 @@ export function listenOrders(cb: (orders: ShopOrder[]) => void, onError?: (error
       });
       cb(items);
     },
-    onError
+    onError ?? ((error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[shop] listenOrders permission-denied (expected for non-admin)");
+        }
+        cb([]);
+      } else {
+        console.error("[shop] listenOrders error:", error);
+        captureException(error);
+      }
+    })
   );
 }
 
@@ -278,7 +309,17 @@ export function listenIntegrations(
       });
       cb(items);
     },
-    onError
+    onError ?? ((error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[shop] listenIntegrations permission-denied (expected for non-admin)");
+        }
+        cb([]);
+      } else {
+        console.error("[shop] listenIntegrations error:", error);
+        captureException(error);
+      }
+    })
   );
 }
 

@@ -17,11 +17,13 @@ import {
   updateDoc,
   where,
   type QueryDocumentSnapshot,
+  type QuerySnapshot,
 } from "firebase/firestore";
-import { onSnapshot } from "../lib/firestoreHelpers";
+import { uqOnSnapshot as onSnapshot } from "../utils/uqOnSnapshot";
 import { v4 as uuid } from "uuid";
 import { db } from "../lib/firebase";
 import { ensureWritesAllowed } from "../lib/securityGuard";
+import { captureException } from "../lib/monitoring";
 
 export const URBEX_REACTIONS = ["🖤", "🔦", "🩸", "👣", "🧩", "👑"] as const;
 export type UrbexReaction = (typeof URBEX_REACTIONS)[number];
@@ -117,12 +119,28 @@ export function listenPosts(
   cb: (posts: Post[], cursor: QueryDocumentSnapshot | null) => void
 ) {
   const q = query(POSTS, orderBy("createdAt", "desc"), limit(limitCount));
-  return onSnapshot(q, (snap) => {
-    const posts: Post[] = [];
-    snap.forEach((d) => posts.push(deserializePost(d)));
-    const cursor = snap.docs[snap.docs.length - 1] ?? null;
-    cb(posts, cursor);
-  });
+  return onSnapshot(
+    "social:listenPosts",
+    q,
+    (snap) => {
+      const posts: Post[] = [];
+      snap.forEach((d) => posts.push(deserializePost(d)));
+      const cursor = snap.docs[snap.docs.length - 1] ?? null;
+      cb(posts, cursor);
+    },
+    (error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[social] listenPosts permission-denied (expected during boot/guest)");
+        }
+        cb([], null);
+      } else {
+        console.error("[social] listenPosts error:", error);
+        captureException(error);
+        cb([], null);
+      }
+    }
+  );
 }
 
 export async function fetchMorePosts(
@@ -204,10 +222,26 @@ export function listenUserPosts(
     orderBy("createdAt", "desc"),
     limit(limitCount)
   );
-  return onSnapshot(q, (snap) => {
-    const posts = snap.docs.map((d) => deserializePost(d));
-    cb(posts);
-  });
+  return onSnapshot(
+    "social:listenUserPosts",
+    q,
+    (snap: QuerySnapshot) => {
+      const posts = snap.docs.map((d) => deserializePost(d));
+      cb(posts);
+    },
+    (error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[social] listenUserPosts permission-denied (expected during boot/guest)");
+        }
+        cb([]);
+      } else {
+        console.error("[social] listenUserPosts error:", error);
+        captureException(error);
+        cb([]);
+      }
+    }
+  );
 }
 
 export async function togglePostReaction(
@@ -270,21 +304,37 @@ export function listenPostComments(
 ) {
   const comments = collection(db, "posts", postId, "comments");
   const q = query(comments, orderBy("createdAt", "desc"));
-  return onSnapshot(q, (snap) => {
-    const out: PostComment[] = [];
-    snap.forEach((d) => {
-      const x: any = d.data();
-      out.push({
-        id: d.id,
-        userId: x.userId,
-        text: x.text ?? "",
-        createdAt: x.createdAt?.toMillis?.() ?? x.createdAt ?? Date.now(),
-        displayName: x.displayName ?? null,
-        username: x.username ?? null,
+  return onSnapshot(
+    "social:listenPostComments",
+    q,
+    (snap: QuerySnapshot) => {
+      const out: PostComment[] = [];
+      snap.forEach((d: QueryDocumentSnapshot) => {
+        const x: any = d.data();
+        out.push({
+          id: d.id,
+          userId: x.userId,
+          text: x.text ?? "",
+          createdAt: x.createdAt?.toMillis?.() ?? x.createdAt ?? Date.now(),
+          displayName: x.displayName ?? null,
+          username: x.username ?? null,
+        });
       });
-    });
-    cb(out);
-  });
+      cb(out);
+    },
+    (error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[social] listenPostComments permission-denied (expected during boot/guest)");
+        }
+        cb([]);
+      } else {
+        console.error("[social] listenPostComments error:", error);
+        captureException(error);
+        cb([]);
+      }
+    }
+  );
 }
 
 export async function fetchPostComments(postId: string): Promise<PostComment[]> {
@@ -339,10 +389,11 @@ export function listenStories(cb: (stories: Story[]) => void) {
   const cutoff = Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000);
   const q = query(cg, where("createdAt", ">=", cutoff), orderBy("createdAt", "desc"));
   return onSnapshot(
+    "social:listenStories",
     q,
-    (snap) => {
+    (snap: QuerySnapshot) => {
       const out: Story[] = [];
-      snap.forEach((d) => {
+      snap.forEach((d: QueryDocumentSnapshot) => {
         const x: any = d.data();
         out.push({
           id: d.id,

@@ -1,6 +1,7 @@
 import { db } from "../lib/firebase";
 import { doc, serverTimestamp, setDoc, type Timestamp } from "firebase/firestore";
-import { onSnapshot } from "../lib/firestoreHelpers";
+import { uqOnSnapshot as onSnapshot } from "../utils/uqOnSnapshot";
+import { captureException } from "../lib/monitoring";
 
 type MapLayoutZoneKey = "top" | "left" | "right" | "bottomRight" | "floating";
 
@@ -53,6 +54,7 @@ export function listenGlobalMapLayout(
   onError?: (error: unknown) => void
 ) {
   return onSnapshot(
+    "layouts:listenGlobalMapLayout",
     ADMIN_LAYOUT_DOC,
     (snap) => {
       const data = snap.data();
@@ -67,7 +69,17 @@ export function listenGlobalMapLayout(
         updatedBy: payload.updatedBy ?? null,
       });
     },
-    onError
+    onError ?? ((error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[layouts] listenGlobalMapLayout permission-denied (expected for non-admin)");
+        }
+        onUpdate(null);
+      } else {
+        console.error("[layouts] listenGlobalMapLayout error:", error);
+        captureException(error);
+      }
+    })
   );
 }
 
@@ -75,17 +87,28 @@ export async function saveGlobalMapLayout(
   zones: MapLayoutZones,
   updatedBy?: string | null
 ) {
-  await setDoc(
-    ADMIN_LAYOUT_DOC,
-    {
-      mapLayout: {
-        zones,
-        updatedAt: serverTimestamp(),
-        updatedBy: updatedBy ?? null,
+  try {
+    await setDoc(
+      ADMIN_LAYOUT_DOC,
+      {
+        mapLayout: {
+          zones,
+          updatedAt: serverTimestamp(),
+          updatedBy: updatedBy ?? null,
+        },
       },
-    },
-    { merge: true }
-  );
+      { merge: true }
+    );
+  } catch (e: any) {
+    if (e?.code === "permission-denied") {
+      if (import.meta.env.DEV) {
+        console.warn(`[saveGlobalMapLayout] permission-denied`);
+      }
+    } else {
+      captureException(e);
+    }
+    throw e;
+  }
 }
 
 export function resetGlobalMapLayout(updatedBy?: string | null) {

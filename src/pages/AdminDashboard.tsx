@@ -58,6 +58,7 @@ import {
 } from "firebase/firestore";
 import { onSnapshot } from "../lib/firestoreHelpers";
 import { db, functions as firebaseFunctions } from "../lib/firebase";
+import { captureException } from "../lib/monitoring";
 import {
   DEFAULT_ADMIN_UI_CONFIG,
   useAdminUiConfig,
@@ -502,20 +503,35 @@ export default function AdminDashboard({
     
     const usersRef = collection(db, "users");
     const q = query(usersRef, orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
-      const items: AdminUser[] = snap.docs.map((doc) => {
-        const data = doc.data() as DocumentData;
-        return {
-          uid: doc.id,
-          displayName: data.displayName ?? null,
-          email: data.email ?? null,
-          isPro: !!data.isPro,
-          isAdmin: !!data.isAdmin,
-          createdAt: data.createdAt?.toMillis?.() ?? data.createdAt ?? undefined,
-        };
-      });
-      setUsers(items);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const items: AdminUser[] = snap.docs.map((doc) => {
+          const data = doc.data() as DocumentData;
+          return {
+            uid: doc.id,
+            displayName: data.displayName ?? null,
+            email: data.email ?? null,
+            isPro: !!data.isPro,
+            isAdmin: !!data.isAdmin,
+            createdAt: data.createdAt?.toMillis?.() ?? data.createdAt ?? undefined,
+          };
+        });
+        setUsers(items);
+      },
+      (error: any) => {
+        if (error?.code === "permission-denied") {
+          if (import.meta.env.DEV) {
+            console.warn("[AdminDashboard] onSnapshot users permission-denied (expected during boot/guest)");
+          }
+          setUsers([]);
+        } else {
+          console.error("[AdminDashboard] onSnapshot users error:", error);
+          captureException(error);
+          setUsers([]);
+        }
+      }
+    );
     return () => unsub();
   }, [page]);
 

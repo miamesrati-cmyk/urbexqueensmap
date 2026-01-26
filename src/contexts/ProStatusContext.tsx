@@ -42,9 +42,25 @@ export function ProStatusProvider({ children }: { children: ReactNode }) {
     const authUnsub = onAuthStateChanged(auth, (nextUser) => {
       setAuthReady(true);
       setUser(nextUser);
+      
+      // 🔒 GUARD: Don't listen if no user (prevents permission-denied)
+      if (!nextUser) {
+        // Reset all auth-dependent state to prevent stale data
+        setProfile(null);
+        setProfileReady(false);
+        setLastKnownPro(false);
+        profileUnsub?.();
+        profileUnsub = null;
+        return;
+      }
+
+      // Reset profile state before listening (user changed)
       setProfile(null);
       setProfileReady(false);
-      if (!nextUser) {
+
+      // 🔒 GUARD: Ensure uid is valid before listening
+      if (!nextUser.uid) {
+        console.warn("[ACCESS] ⚠️ nextUser.uid is null/undefined, skipping listenUserProfile");
         setLastKnownPro(false);
         profileUnsub?.();
         profileUnsub = null;

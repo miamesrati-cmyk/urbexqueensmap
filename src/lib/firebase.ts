@@ -48,10 +48,25 @@ if (appCheckSiteKey) {
 */
 
 export const auth = getAuth(app);
+
+// 🔒 FIRESTORE NETWORK COMPATIBILITY LOCK
+// Force long polling to prevent WebChannel blocks (Safari ITP, VPN, proxy, Adblock)
+// Note: useFetchStreams not supported in current Firebase SDK version
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-  // useFetchStreams removed: not supported in current Firebase SDK version
 });
+
+// Log network compatibility mode in dev only
+if (import.meta.env.DEV) {
+  console.warn(
+    "[FIRESTORE] 🔒 Network compatibility mode enabled",
+    {
+      longPolling: true,
+      reason: "Prevent WebChannel/Listen blocks (Safari/VPN/Adblock/proxy)",
+    }
+  );
+}
+
 export const storage = getStorage(app);
 export const functions = getFunctions(app, "us-central1");
 export const appCheck = appCheckInstance;

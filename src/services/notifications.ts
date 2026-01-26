@@ -13,6 +13,7 @@ import {
 import { onSnapshot } from "../lib/firestoreHelpers";
 import { db } from "../lib/firebase";
 import type { NotificationItem, NotificationActorSnapshot } from "../lib/notifications";
+import { captureException } from "../lib/monitoring";
 
 function toNotificationItem(id: string, data: Record<string, any>): NotificationItem {
   const createdAtRaw = data.createdAt;
@@ -36,8 +37,8 @@ function toNotificationItem(id: string, data: Record<string, any>): Notification
   };
 }
 
-export function subscribeToUserNotifications(
-  uid: string,
+export function listenUserNotifications(
+  uid: string | null,
   cb: (items: NotificationItem[]) => void
 ) {
   if (!uid) {
@@ -45,29 +46,66 @@ export function subscribeToUserNotifications(
   }
   const col = collection(db, "users", uid, "notifications");
   const q = query(col, orderBy("createdAt", "desc"), limit(45));
-  return onSnapshot(q, (snap) => {
-    const items: NotificationItem[] = [];
-    snap.forEach((item) => {
-      const data = item.data();
-      items.push(toNotificationItem(item.id, data));
-    });
-    cb(items);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const items: NotificationItem[] = [];
+      snap.forEach((item) => {
+        const data = item.data();
+        items.push(toNotificationItem(item.id, data));
+      });
+      cb(items);
+    },
+    (error: any) => {
+      if (error?.code === "permission-denied") {
+        if (import.meta.env.DEV) {
+          console.warn("[notifications] listenUserNotifications permission-denied (expected during boot/guest)");
+        }
+        cb([]);
+      } else {
+        console.error("[notifications] listenUserNotifications error:", error);
+        captureException(error);
+        cb([]);
+      }
+    }
+  );
 }
 
 export async function markUserNotificationRead(uid: string, notificationId: string) {
   const ref = doc(db, "users", uid, "notifications", notificationId);
-  await updateDoc(ref, { isRead: true });
+  try {
+    await updateDoc(ref, { isRead: true });
+  } catch (e: any) {
+    if (e?.code === "permission-denied") {
+      if (import.meta.env.DEV) {
+        console.warn(`[markUserNotificationRead] permission-denied: uid=${uid}`);
+      }
+    } else {
+      captureException(e);
+    }
+    throw e;
+  }
 }
 
 export async function markAllUserNotificationsRead(uid: string) {
   const col = collection(db, "users", uid, "notifications");
   const unreadQuery = query(col, where("isRead", "==", false), limit(50));
-  const snap = await getDocs(unreadQuery);
-  if (snap.empty) return;
-  const batch = writeBatch(db);
-  snap.forEach((notif) => {
-    batch.update(notif.ref, { isRead: true });
-  });
-  await batch.commit();
+  try {
+    const snap = await getDocs(unreadQuery);
+    if (snap.empty) return;
+    const batch = writeBatch(db);
+    snap.forEach((notif) => {
+      batch.update(notif.ref, { isRead: true });
+    });
+    await batch.commit();
+  } catch (e: any) {
+    if (e?.code === "permission-denied") {
+      if (import.meta.env.DEV) {
+        console.warn(`[markAllUserNotificationsRead] permission-denied: uid=${uid}`);
+      }
+    } else {
+      captureException(e);
+    }
+    throw e;
+  }
 }
