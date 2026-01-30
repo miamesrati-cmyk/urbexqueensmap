@@ -1790,6 +1790,7 @@ export default function SocialFeed() {
                 onReact={(emoji) => handleReactPost(post.id, emoji)}
                 currentUserId={userUid}
                 isGuest={isGuest}
+                shouldBreathing={false}
               />
             ))}
             {/* Sentinel pour infinite scroll */}

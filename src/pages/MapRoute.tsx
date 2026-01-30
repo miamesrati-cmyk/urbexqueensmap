@@ -281,7 +281,8 @@ export default function MapRoute({ nightVisionActive }: MapRouteProps) {
   // � ARCHIVES MODE (Option C): Raster overlay + archive cards
   const [archivesOpacity, setArchivesOpacity] = useState(0.55); // Default opacity
   const [archivesSource, setArchivesSource] = useState<"ohm" | "fallback">("ohm");
-  const [archivesQueryPoint, setArchivesQueryPoint] = useState<{ lat: number; lng: number } | null>(null);
+  // TODO: implement archives query point feature
+  // const [archivesQueryPoint, setArchivesQueryPoint] = useState<{ lat: number; lng: number } | null>(null);
 
   // �🕰️ TIME RIFT: Memoize decay GeoJSON (avoid rebuild on every mode/year change)
   const decayGeoJSON = useMemo(() => {
