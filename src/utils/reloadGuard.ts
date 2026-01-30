@@ -2,8 +2,8 @@ import {
   safeLocalStorageGet,
   safeLocalStorageRemove,
   safeLocalStorageSet,
-} from "./storage.ts";
-import { ensureQaGlobal } from "./qaTools.ts";
+} from "./storage";
+import { ensureQaGlobal } from "./qaTools";
 
 const RELOAD_GUARD_KEY = "uq_reload_guard_v1";
 const RELOAD_BANNER_FLAG = "__UQ_RELOAD_BANNER__";

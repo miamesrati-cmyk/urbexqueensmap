@@ -94,7 +94,7 @@ import {
   markReloadBannerVisible,
   initQaReloadTrigger,
 } from "./utils/reloadGuard";
-import { initQaAuthHooks } from "./utils/qaTools.ts";
+import { initQaAuthHooks } from "./utils/qaTools";
 import SecurityLockOverlay from "./components/SecurityLockOverlay";
 import {
   safeLocalStorageClear,
