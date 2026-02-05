@@ -1,5 +1,9 @@
 {
   "projects": {
-    "default": "urbexqueens-placeholder"
-  }
+    "default": "urbexqueens-placeholder",
+    "prod": "urbexqueenscanada",
+    "staging": "urbexqueens-301b1"
+  },
+  "targets": {},
+  "etags": {}
 }
